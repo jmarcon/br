@@ -74,6 +74,16 @@ enum ConfigCommands {
     Show,
     /// Validate the configuration file
     Validate,
+    /// Export the configuration to a file (or stdout if no path is given)
+    Export {
+        /// Destination file (defaults to stdout)
+        output: Option<PathBuf>,
+    },
+    /// Import a configuration file, replacing the current one
+    Import {
+        /// Source file to import
+        input: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -85,6 +95,40 @@ enum RulesCommands {
         url: String,
         #[arg(long = "source-app")]
         source_app: Option<String>,
+    },
+    /// Add a new rule
+    Add {
+        /// Unique rule id
+        id: String,
+        /// Display name (defaults to the id)
+        #[arg(long)]
+        name: Option<String>,
+        /// Priority (higher runs first); defaults to one above the current maximum
+        #[arg(long)]
+        priority: Option<i64>,
+        /// URL glob/regex pattern(s) to match (repeatable)
+        #[arg(long = "url-pattern")]
+        url_pattern: Vec<String>,
+        /// Source application name(s) to match (repeatable)
+        #[arg(long = "source-app")]
+        source_app: Vec<String>,
+        /// Browser/profile id to open matching URLs with
+        #[arg(long = "open-with")]
+        open_with: Option<String>,
+        /// Open in private/incognito mode
+        #[arg(long)]
+        private: bool,
+        /// Block matching URLs instead of opening them
+        #[arg(long)]
+        block: bool,
+        /// Create the rule disabled
+        #[arg(long)]
+        disabled: bool,
+    },
+    /// Remove a rule by id
+    Rm {
+        /// Id of the rule to remove
+        id: String,
     },
 }
 
@@ -113,12 +157,29 @@ fn main() -> Result<()> {
         Commands::Config { command } => match command {
             ConfigCommands::Show => cmd_config_show(&path, cli.json),
             ConfigCommands::Validate => cmd_config_validate(&path, cli.json),
+            ConfigCommands::Export { output } => cmd_config_export(&path, output),
+            ConfigCommands::Import { input } => cmd_config_import(&path, &input, cli.json),
         },
         Commands::Rules { command } => match command {
             RulesCommands::List => cmd_rules_list(&path, cli.json),
             RulesCommands::Test { url, source_app } => {
                 cmd_rules_test(&path, &url, source_app, cli.json)
             }
+            RulesCommands::Add {
+                id,
+                name,
+                priority,
+                url_pattern,
+                source_app,
+                open_with,
+                private,
+                block,
+                disabled,
+            } => cmd_rules_add(
+                &path, id, name, priority, url_pattern, source_app, open_with, private, block,
+                disabled, cli.json,
+            ),
+            RulesCommands::Rm { id } => cmd_rules_rm(&path, &id, cli.json),
         },
         Commands::Browsers { command } => match command {
             BrowsersCommands::List => cmd_browsers_list(cli.json),
@@ -335,6 +396,50 @@ fn cmd_config_validate(path: &PathBuf, json: bool) -> Result<()> {
     }
 }
 
+fn cmd_config_export(path: &PathBuf, output: Option<PathBuf>) -> Result<()> {
+    let (cfg, err) = config::load_or_default(path);
+    if let Some(err) = err {
+        eprintln!("warning: {err}");
+    }
+    let contents = toml::to_string_pretty(&cfg).context("serializing configuration")?;
+    match output {
+        Some(output) => {
+            std::fs::write(&output, contents)
+                .with_context(|| format!("failed to write {}", output.display()))?;
+            println!("exported configuration to {}", output.display());
+        }
+        None => print!("{contents}"),
+    }
+    Ok(())
+}
+
+fn cmd_config_import(path: &PathBuf, input: &PathBuf, json: bool) -> Result<()> {
+    let contents = std::fs::read_to_string(input)
+        .with_context(|| format!("failed to read {}", input.display()))?;
+    let cfg = config::parse(&contents).context("imported file is not a valid configuration")?;
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).context("creating config directory")?;
+    }
+    std::fs::write(path, toml::to_string_pretty(&cfg)?).context("writing config file")?;
+
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({"imported": true, "rules": cfg.rules.len(), "browsers": cfg.browsers.len()})
+        );
+    } else {
+        println!(
+            "imported configuration from {} into {} ({} rules, {} browsers)",
+            input.display(),
+            path.display(),
+            cfg.rules.len(),
+            cfg.browsers.len()
+        );
+    }
+    Ok(())
+}
+
 fn cmd_rules_list(path: &PathBuf, json: bool) -> Result<()> {
     let (cfg, _err) = config::load_or_default(path);
     let mut rules = cfg.rules.clone();
@@ -377,6 +482,81 @@ fn cmd_rules_test(path: &PathBuf, url: &str, source_app: Option<String>, json: b
             None => println!("matched rule: (none — using default action)"),
         }
         println!("decision: {}", describe_decision(&explanation.decision));
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cmd_rules_add(
+    path: &PathBuf,
+    id: String,
+    name: Option<String>,
+    priority: Option<i64>,
+    url_pattern: Vec<String>,
+    source_app: Vec<String>,
+    open_with: Option<String>,
+    private: bool,
+    block: bool,
+    disabled: bool,
+    json: bool,
+) -> Result<()> {
+    let (mut cfg, _err) = config::load_or_default(path);
+
+    if cfg.rules.iter().any(|r| r.id == id) {
+        anyhow::bail!("a rule with id '{id}' already exists");
+    }
+
+    let priority = priority.unwrap_or_else(|| {
+        cfg.rules.iter().map(|r| r.priority).max().unwrap_or(0) + 10
+    });
+
+    let rule = br_core::Rule {
+        id: id.clone(),
+        name: name.unwrap_or_else(|| id.clone()),
+        enabled: !disabled,
+        priority,
+        match_: br_core::MatchCondition {
+            url_pattern,
+            source_app,
+            ..Default::default()
+        },
+        action: br_core::Action {
+            ask: open_with.is_none() && !block,
+            open_with,
+            private,
+            block,
+            ..Default::default()
+        },
+    };
+
+    cfg.rules.push(rule);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).context("creating config directory")?;
+    }
+    std::fs::write(path, toml::to_string_pretty(&cfg)?).context("writing config file")?;
+
+    if json {
+        println!("{}", serde_json::json!({"added": id}));
+    } else {
+        println!("added rule '{id}'");
+    }
+    Ok(())
+}
+
+fn cmd_rules_rm(path: &PathBuf, id: &str, json: bool) -> Result<()> {
+    let (mut cfg, _err) = config::load_or_default(path);
+    let before = cfg.rules.len();
+    cfg.rules.retain(|r| r.id != id);
+    if cfg.rules.len() == before {
+        anyhow::bail!("no rule with id '{id}' found");
+    }
+
+    std::fs::write(path, toml::to_string_pretty(&cfg)?).context("writing config file")?;
+
+    if json {
+        println!("{}", serde_json::json!({"removed": id}));
+    } else {
+        println!("removed rule '{id}'");
     }
     Ok(())
 }
