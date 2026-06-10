@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 br-core = { path = "../br-core" }
+br-platform = { path = "../br-platform" }
 clap.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true
