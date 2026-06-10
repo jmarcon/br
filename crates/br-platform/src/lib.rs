@@ -46,6 +46,13 @@ pub trait PlatformIntegration {
 
     /// Best-effort name of the foreground application (for `source_app` rule matching).
     fn get_foreground_app_name(&self) -> Option<String>;
+
+    /// Enables or disables launching `br-daemon` automatically on login (RF per §8.4
+    /// `start_on_login`), using the OS-native autostart mechanism.
+    fn set_autostart(&self, enabled: bool) -> anyhow::Result<()>;
+
+    /// Returns whether `br-daemon` is currently registered to start on login.
+    fn is_autostart_enabled(&self) -> anyhow::Result<bool>;
 }
 
 /// Outcome of [`PlatformIntegration::register_as_default_handler`].

@@ -25,4 +25,15 @@ impl PlatformIntegration for UnsupportedPlatform {
     fn get_foreground_app_name(&self) -> Option<String> {
         None
     }
+
+    fn set_autostart(&self, _enabled: bool) -> anyhow::Result<()> {
+        anyhow::bail!(
+            "autostart is not yet implemented for {}",
+            std::env::consts::OS
+        )
+    }
+
+    fn is_autostart_enabled(&self) -> anyhow::Result<bool> {
+        Ok(false)
+    }
 }

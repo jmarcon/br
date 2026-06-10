@@ -5,6 +5,32 @@ use winreg::RegKey;
 
 const APP_REG_NAME: &str = "BrowserRouter";
 const CAPABILITIES_PATH: &str = r"Software\BrowserRouter\Capabilities";
+const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+const AUTOSTART_VALUE_NAME: &str = "BrowserRouterDaemon";
+
+/// Enables/disables `br-daemon` autostart via `HKCU\...\CurrentVersion\Run`.
+pub fn set_autostart(enabled: bool) -> anyhow::Result<()> {
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let (run_key, _) = hkcu.create_subkey(RUN_KEY)?;
+
+    if enabled {
+        let exe = std::env::current_exe()?;
+        let daemon_exe = exe.with_file_name("br-daemon.exe");
+        run_key.set_value(AUTOSTART_VALUE_NAME, &daemon_exe.to_string_lossy().to_string())?;
+    } else {
+        let _ = run_key.delete_value(AUTOSTART_VALUE_NAME);
+    }
+    Ok(())
+}
+
+/// Checks whether `br-daemon` is registered under `HKCU\...\CurrentVersion\Run`.
+pub fn is_autostart_enabled() -> anyhow::Result<bool> {
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let Ok(run_key) = hkcu.open_subkey(RUN_KEY) else {
+        return Ok(false);
+    };
+    Ok(run_key.get_value::<String, _>(AUTOSTART_VALUE_NAME).is_ok())
+}
 
 /// Checks `HKCU\...\UrlAssociations\http\UserChoice` for `br`'s `ProgId`.
 ///

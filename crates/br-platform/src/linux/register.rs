@@ -1,6 +1,44 @@
 use crate::RegisterOutcome;
 
 const DESKTOP_FILE_NAME: &str = "browserrouter.desktop";
+const AUTOSTART_FILE_NAME: &str = "browserrouter-daemon.desktop";
+
+/// Enables/disables `br-daemon` autostart by writing/removing a `.desktop`
+/// file under `~/.config/autostart` (freedesktop autostart spec).
+pub fn set_autostart(enabled: bool) -> anyhow::Result<()> {
+    let config_dir = dirs::config_dir()
+        .ok_or_else(|| anyhow::anyhow!("could not determine XDG config directory"))?;
+    let autostart_dir = config_dir.join("autostart");
+    let autostart_file = autostart_dir.join(AUTOSTART_FILE_NAME);
+
+    if enabled {
+        std::fs::create_dir_all(&autostart_dir)?;
+        let exe = std::env::current_exe()?;
+        let daemon_exe = exe.with_file_name("br-daemon");
+        let contents = format!(
+            "[Desktop Entry]\n\
+Type=Application\n\
+Name=BrowserRouter Daemon\n\
+Exec={}\n\
+Terminal=false\n\
+NoDisplay=true\n\
+X-GNOME-Autostart-enabled=true\n",
+            daemon_exe.display()
+        );
+        std::fs::write(&autostart_file, contents)?;
+    } else if autostart_file.exists() {
+        std::fs::remove_file(&autostart_file)?;
+    }
+    Ok(())
+}
+
+/// Checks whether the autostart `.desktop` file exists.
+pub fn is_autostart_enabled() -> anyhow::Result<bool> {
+    let Some(config_dir) = dirs::config_dir() else {
+        return Ok(false);
+    };
+    Ok(config_dir.join("autostart").join(AUTOSTART_FILE_NAME).exists())
+}
 
 /// Checks `xdg-settings get default-web-browser` against `br`'s `.desktop` file.
 pub fn is_default_handler() -> anyhow::Result<bool> {

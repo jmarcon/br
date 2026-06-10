@@ -77,7 +77,10 @@ struct SettingsApp {
 }
 
 impl SettingsApp {
-    fn new(path: PathBuf, config: Config, onboarding: bool) -> Self {
+    fn new(path: PathBuf, mut config: Config, onboarding: bool) -> Self {
+        if let Ok(enabled) = br_platform::current().is_autostart_enabled() {
+            config.general.start_on_login = enabled;
+        }
         Self {
             path,
             config,
@@ -242,7 +245,21 @@ impl SettingsApp {
                 }
             }
         });
-        ui.checkbox(&mut general.start_on_login, "Start on login");
+        let was_start_on_login = general.start_on_login;
+        ui.checkbox(&mut general.start_on_login, "Start on login (runs br-daemon)");
+        if general.start_on_login != was_start_on_login {
+            let enabled = general.start_on_login;
+            match br_platform::current().set_autostart(enabled) {
+                Ok(()) => {
+                    self.status = Some(if enabled {
+                        "br-daemon will now start on login.".to_string()
+                    } else {
+                        "br-daemon autostart disabled.".to_string()
+                    })
+                }
+                Err(err) => self.status = Some(format!("Failed to update autostart: {err}")),
+            }
+        }
         ui.add_space(8.0);
         ui.separator();
         if ui.button("Discover browsers").clicked() {

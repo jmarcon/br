@@ -34,4 +34,12 @@ impl PlatformIntegration for WindowsPlatform {
     fn get_foreground_app_name(&self) -> Option<String> {
         foreground::get_foreground_app_name()
     }
+
+    fn set_autostart(&self, enabled: bool) -> anyhow::Result<()> {
+        register::set_autostart(enabled)
+    }
+
+    fn is_autostart_enabled(&self) -> anyhow::Result<bool> {
+        register::is_autostart_enabled()
+    }
 }
