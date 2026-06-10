@@ -250,6 +250,7 @@ dependencies = [
  "br-core",
  "br-platform",
  "eframe",
+ "toml",
 ]
 
 [[package]]

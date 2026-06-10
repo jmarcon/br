@@ -105,6 +105,7 @@ fn handle_open(request: OpenRequest, state: &Arc<Mutex<ConfigState>>) -> &'stati
     };
     guard.reload_if_changed();
     let cfg = guard.config.clone();
+    let path = guard.path.clone();
     drop(guard);
 
     let normalized = filters::apply_filters(&request.url, &cfg.filters);
@@ -138,7 +139,7 @@ fn handle_open(request: OpenRequest, state: &Arc<Mutex<ConfigState>>) -> &'stati
             }
             "OK\n"
         }
-        RoutingDecision::AskUser => match br_ui_picker::show_picker(&normalized, &cfg) {
+        RoutingDecision::AskUser => match br_ui_picker::show_picker(&normalized, &cfg, Some(&path)) {
             Ok(()) => "OK\n",
             Err(err) => {
                 eprintln!("br-daemon: picker failed: {err}");

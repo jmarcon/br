@@ -253,7 +253,7 @@ fn cmd_open(
             }
         }
         RoutingDecision::AskUser => {
-            br_ui_picker::show_picker(&normalized, &cfg)?;
+            br_ui_picker::show_picker(&normalized, &cfg, Some(path))?;
         }
         RoutingDecision::Block => {}
     }
