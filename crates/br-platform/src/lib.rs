@@ -17,9 +17,19 @@ mod windows;
 #[cfg(target_os = "windows")]
 pub use windows::WindowsPlatform as CurrentPlatform;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+pub use linux::LinuxPlatform as CurrentPlatform;
+
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+pub use macos::MacosPlatform as CurrentPlatform;
+
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
 mod unsupported;
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
 pub use unsupported::UnsupportedPlatform as CurrentPlatform;
 
 /// Per-OS hooks for browser discovery and default-handler management.
