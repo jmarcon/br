@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX Toolset source file for the BrowserRouter (br) Windows installer.
+  Built via `cargo wix` (https://github.com/volks73/cargo-wix), which expects
+  this file at crates/br-cli/wix/main.wxs and the release binaries already
+  built (`cargo build --release` for br, br-daemon, br-settings).
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+    <Product
+        Id="*"
+        Name="BrowserRouter"
+        UpgradeCode="6F3F6E1E-2E1B-4B6C-9B0E-7B6E6B5C9A11"
+        Manufacturer="Juliano Marcon"
+        Language="1033"
+        Codepage="1252"
+        Version="$(var.Version)">
+
+        <Package
+            Id="*"
+            Keywords="Installer"
+            Description="BrowserRouter (br) — link/protocol router"
+            Manufacturer="Juliano Marcon"
+            InstallerVersion="450"
+            Languages="1033"
+            Compressed="yes"
+            InstallScope="perUser"
+            SummaryCodepage="1252" />
+
+        <MajorUpgrade
+            Schedule="afterInstallInitialize"
+            DowngradeErrorMessage="A newer version of BrowserRouter is already installed." />
+
+        <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="LocalAppDataFolder">
+                <Directory Id="APPLICATIONFOLDER" Name="BrowserRouter">
+                    <Component Id="BinariesComponent" Guid="*">
+                        <File Id="BrExe" Source="target\release\br.exe" KeyPath="yes" />
+                        <File Id="BrDaemonExe" Source="target\release\br-daemon.exe" />
+                        <File Id="BrSettingsExe" Source="target\release\br-settings.exe" />
+                    </Component>
+                </Directory>
+            </Directory>
+
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="BrowserRouter">
+                    <Component Id="ApplicationShortcutComponent" Guid="*">
+                        <Shortcut
+                            Id="SettingsShortcut"
+                            Name="BrowserRouter Settings"
+                            Target="[APPLICATIONFOLDER]br-settings.exe"
+                            WorkingDirectory="APPLICATIONFOLDER" />
+                        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+                        <RegistryValue
+                            Root="HKCU"
+                            Key="Software\BrowserRouter"
+                            Name="installed"
+                            Type="integer"
+                            Value="1"
+                            KeyPath="yes" />
+                    </Component>
+                </Directory>
+            </Directory>
+        </Directory>
+
+        <Feature Id="MainFeature" Title="BrowserRouter" Level="1">
+            <ComponentRef Id="BinariesComponent" />
+            <ComponentRef Id="ApplicationShortcutComponent" />
+        </Feature>
+
+    </Product>
+</Wix>

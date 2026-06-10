@@ -61,3 +61,138 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.artifact }}
+
+  installer-linux:
+    name: Linux .deb installer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux UI dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
+
+      - name: Build release binaries
+        run: cargo build --workspace --release
+
+      - name: Build .deb
+        run: cargo deb --package br-cli --no-build
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: browserrouter-amd64.deb
+          path: target/debian/*.deb
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/debian/*.deb
+
+  installer-windows:
+    name: Windows MSI installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-wix
+        run: cargo install cargo-wix --locked
+
+      - name: Build release binaries
+        run: cargo build --workspace --release
+
+      - name: Build MSI
+        run: cargo wix --package br-cli --no-build --nocapture
+
+      - name: Code-sign MSI
+        if: env.WINDOWS_CERTIFICATE != ''
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: |
+          $certPath = "cert.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $msi = Get-ChildItem -Path target/wix -Filter *.msi | Select-Object -First 1
+          & signtool sign /f $certPath /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $msi.FullName
+          Remove-Item $certPath
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: br-windows-x86_64.msi
+          path: target/wix/*.msi
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/wix/*.msi
+
+  installer-macos:
+    name: macOS DMG installer
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        run: cargo build --workspace --release
+
+      - name: Determine version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build DMG
+        run: |
+          chmod +x packaging/macos/build-dmg.sh
+          ./packaging/macos/build-dmg.sh "${{ steps.version.outputs.version }}"
+
+      - name: Code-sign and notarize DMG
+        if: env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_NOTARIZATION_KEYCHAIN_PROFILE: ${{ secrets.APPLE_NOTARIZATION_KEYCHAIN_PROFILE }}
+        run: |
+          DMG=$(ls br-macos-*.dmg | head -n1)
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          security create-keychain -p actions "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p actions "$KEYCHAIN_PATH"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > cert.p12
+          security import cert.p12 -k "$KEYCHAIN_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN_PATH"
+          codesign --sign "$APPLE_SIGNING_IDENTITY" "$DMG"
+          xcrun notarytool submit "$DMG" --keychain-profile "$APPLE_NOTARIZATION_KEYCHAIN_PROFILE" --wait
+          xcrun stapler staple "$DMG"
+          rm -f cert.p12
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: br-macos-x86_64.dmg
+          path: br-macos-*.dmg
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: br-macos-*.dmg
