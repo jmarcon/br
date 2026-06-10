@@ -4,6 +4,7 @@
 //! target with the mouse, a number key (1-9), or arrow keys + Enter; Esc
 //! cancels. Holding Shift while choosing opens the target in private mode.
 
+use br_core::i18n::{tr, Key};
 use br_core::{BrowserTarget, Config};
 use br_platform::PlatformIntegration;
 use eframe::egui;
@@ -98,8 +99,9 @@ impl eframe::App for PickerApp {
             }
         }
 
+        let lang = self.cfg.general.language.clone();
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label(format!("Open: {}", self.url));
+            ui.label(format!("{} {}", tr(Key::PickerOpenWith, &lang), self.url));
             ui.separator();
 
             if self.targets.is_empty() {
@@ -116,7 +118,7 @@ impl eframe::App for PickerApp {
             }
 
             ui.separator();
-            ui.small("↑/↓ + Enter, or 1-9 to choose. Hold Shift for private mode. Esc to cancel.");
+            ui.small(tr(Key::PickerHelp, &lang));
         });
     }
 }

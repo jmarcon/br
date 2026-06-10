@@ -5,6 +5,7 @@
 //! browsers and registers `br` as the default handler.
 
 use anyhow::{Context, Result};
+use br_core::i18n::{tr, Key};
 use br_core::{BrowserTarget, Config, Filter, Rule};
 use br_platform::PlatformIntegration;
 use eframe::egui;
@@ -46,7 +47,7 @@ pub fn run(config_path: Option<PathBuf>) -> Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([720.0, 520.0])
-            .with_title("br — Settings"),
+            .with_title(tr(Key::SettingsTitle, &config.general.language)),
         ..Default::default()
     };
 
@@ -152,26 +153,27 @@ impl SettingsApp {
     }
 
     fn show_onboarding(&mut self, ctx: &egui::Context) {
+        let lang = self.config.general.language.clone();
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Welcome to br");
-            ui.label("br routes links to the right browser/profile based on rules you define.");
+            ui.heading(tr(Key::OnboardingWelcomeTitle, &lang));
+            ui.label(tr(Key::OnboardingWelcomeBody, &lang));
             ui.add_space(12.0);
 
             ui.label("1. Discover installed browsers:");
-            if ui.button("Discover browsers").clicked() {
+            if ui.button(tr(Key::DiscoverBrowsers, &lang)).clicked() {
                 self.discover_browsers();
             }
             ui.label(format!("   {} browser(s) configured.", self.config.browsers.len()));
             ui.add_space(8.0);
 
             ui.label("2. Set br as your default browser:");
-            if ui.button("Register as default browser").clicked() {
+            if ui.button(tr(Key::RegisterDefaultBrowser, &lang)).clicked() {
                 self.register_default_handler();
             }
             ui.add_space(8.0);
 
             ui.label("3. Finish setup:");
-            if ui.button("Finish and open settings").clicked() {
+            if ui.button(tr(Key::OnboardingFinish, &lang)).clicked() {
                 self.ensure_fallback_rule();
                 self.save();
                 self.onboarding = false;
@@ -192,14 +194,15 @@ impl eframe::App for SettingsApp {
             return;
         }
 
+        let lang = self.config.general.language.clone();
         egui::TopBottomPanel::top("tabs").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.tab, Tab::General, "General");
-                ui.selectable_value(&mut self.tab, Tab::Browsers, "Browsers");
-                ui.selectable_value(&mut self.tab, Tab::Filters, "Filters");
-                ui.selectable_value(&mut self.tab, Tab::Rules, "Rules");
+                ui.selectable_value(&mut self.tab, Tab::General, tr(Key::TabGeneral, &lang));
+                ui.selectable_value(&mut self.tab, Tab::Browsers, tr(Key::TabBrowsers, &lang));
+                ui.selectable_value(&mut self.tab, Tab::Filters, tr(Key::TabFilters, &lang));
+                ui.selectable_value(&mut self.tab, Tab::Rules, tr(Key::TabRules, &lang));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Save").clicked() {
+                    if ui.button(tr(Key::Save, &lang)).clicked() {
                         self.save();
                     }
                 });
@@ -223,6 +226,7 @@ impl eframe::App for SettingsApp {
 
 impl SettingsApp {
     fn show_general(&mut self, ui: &mut egui::Ui) {
+        let lang = self.config.general.language.clone();
         let general = &mut self.config.general;
         ui.horizontal(|ui| {
             ui.label("Theme:");
@@ -246,7 +250,7 @@ impl SettingsApp {
             }
         });
         let was_start_on_login = general.start_on_login;
-        ui.checkbox(&mut general.start_on_login, "Start on login (runs br-daemon)");
+        ui.checkbox(&mut general.start_on_login, tr(Key::StartOnLogin, &lang));
         if general.start_on_login != was_start_on_login {
             let enabled = general.start_on_login;
             match br_platform::current().set_autostart(enabled) {
@@ -262,7 +266,7 @@ impl SettingsApp {
         }
         ui.add_space(8.0);
         ui.separator();
-        if ui.button("Discover browsers").clicked() {
+        if ui.button(tr(Key::DiscoverBrowsers, &lang)).clicked() {
             self.discover_browsers();
         }
         ui.add_space(4.0);
@@ -272,12 +276,13 @@ impl SettingsApp {
         } else {
             "br is NOT the default browser handler."
         });
-        if ui.button("Register as default browser").clicked() {
+        if ui.button(tr(Key::RegisterDefaultBrowser, &lang)).clicked() {
             self.register_default_handler();
         }
     }
 
     fn show_browsers(&mut self, ui: &mut egui::Ui) {
+        let lang = self.config.general.language.clone();
         let mut remove_idx = None;
         egui::ScrollArea::vertical().show(ui, |ui| {
             for (i, browser) in self.config.browsers.iter_mut().enumerate() {
@@ -320,7 +325,7 @@ impl SettingsApp {
                 hidden: false,
             });
         }
-        if ui.button("Discover browsers").clicked() {
+        if ui.button(tr(Key::DiscoverBrowsers, &lang)).clicked() {
             self.discover_browsers();
         }
     }

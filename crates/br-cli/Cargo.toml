@@ -23,3 +23,19 @@ serde_json.workspace = true
 serde.workspace = true
 toml.workspace = true
 dirs = "5"
+
+[package.metadata.deb]
+name = "browserrouter"
+maintainer = "Juliano Marcon"
+copyright = "2026, Juliano Marcon"
+extended-description = """\
+BrowserRouter (br) routes links to the right browser/profile based on \
+user-defined rules, with optional URL filters (tracking-param stripping, \
+HTTPS upgrade) and a low-latency picker UI."""
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/br", "usr/bin/br", "755"],
+    ["target/release/br-daemon", "usr/bin/br-daemon", "755"],
+    ["target/release/br-settings", "usr/bin/br-settings", "755"],
+]

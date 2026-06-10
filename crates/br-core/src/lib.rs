@@ -7,6 +7,7 @@
 pub mod config;
 pub mod engine;
 pub mod filters;
+pub mod i18n;
 pub mod model;
 
 pub use config::{load_or_default, parse, validate};
