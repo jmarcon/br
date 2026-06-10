@@ -7,6 +7,11 @@ use br_core::BrowserTarget;
 mod launch;
 pub use launch::launch;
 
+mod util;
+
+pub mod desktop_entry;
+pub mod info_plist;
+
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "windows")]

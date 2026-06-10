@@ -97,32 +97,7 @@ fn extract_executable(command: &str) -> Option<String> {
     trimmed.split_whitespace().next().map(|s| s.to_string())
 }
 
-fn classify(name: &str) -> &'static str {
-    let lower = name.to_lowercase();
-    if lower.contains("firefox") || lower.contains("librewolf") || lower.contains("zen") {
-        "firefox"
-    } else if lower.contains("chrome")
-        || lower.contains("edge")
-        || lower.contains("brave")
-        || lower.contains("vivaldi")
-        || lower.contains("opera")
-        || lower.contains("chromium")
-        || lower.contains("arc")
-    {
-        "chromium"
-    } else {
-        "generic"
-    }
-}
-
-fn slug(name: &str) -> String {
-    name.to_lowercase()
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .trim_matches('-')
-        .to_string()
-}
+use crate::util::{classify, slug};
 
 #[derive(Deserialize)]
 struct LocalState {
@@ -351,17 +326,4 @@ StartWithLastProfile=1
         );
     }
 
-    #[test]
-    fn classify_browsers() {
-        assert_eq!(classify("Google Chrome"), "chromium");
-        assert_eq!(classify("Microsoft Edge"), "chromium");
-        assert_eq!(classify("Mozilla Firefox"), "firefox");
-        assert_eq!(classify("Internet Explorer"), "generic");
-    }
-
-    #[test]
-    fn slug_normalizes_names() {
-        assert_eq!(slug("Google Chrome"), "google-chrome");
-        assert_eq!(slug("Firefox (Work)"), "firefox--work");
-    }
 }
