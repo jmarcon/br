@@ -4,6 +4,7 @@ members = [
     "crates/br-core",
     "crates/br-platform",
     "crates/br-ui-picker",
+    "crates/br-ui-settings",
     "crates/br-cli",
 ]
 

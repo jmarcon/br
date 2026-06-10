@@ -197,6 +197,7 @@ dependencies = [
  "br-core",
  "br-platform",
  "br-ui-picker",
+ "br-ui-settings",
  "clap",
  "dirs",
  "serde",
@@ -237,6 +238,18 @@ dependencies = [
  "br-core",
  "br-platform",
  "eframe",
+]
+
+[[package]]
+name = "br-ui-settings"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "br-core",
+ "br-platform",
+ "dirs",
+ "eframe",
+ "toml",
 ]
 
 [[package]]

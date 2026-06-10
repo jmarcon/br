@@ -52,6 +52,8 @@ enum Commands {
         #[command(subcommand)]
         command: BrowsersCommands,
     },
+    /// Open the settings UI (browsers, filters, rules)
+    Settings,
     /// Register br as the default http/https handler
     Register,
     /// Remove br as the default http/https handler (manual step on most OSes)
@@ -119,6 +121,7 @@ fn main() -> Result<()> {
         Commands::Browsers { command } => match command {
             BrowsersCommands::List => cmd_browsers_list(cli.json),
         },
+        Commands::Settings => br_ui_settings::run(Some(path)),
         Commands::Register => cmd_register(cli.json),
         Commands::Unregister => cmd_unregister(),
     }
