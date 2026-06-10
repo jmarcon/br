@@ -4,6 +4,9 @@
 
 use br_core::BrowserTarget;
 
+mod launch;
+pub use launch::launch;
+
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "windows")]

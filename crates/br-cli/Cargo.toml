@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 br-core = { path = "../br-core" }
 br-platform = { path = "../br-platform" }
+br-ui-picker = { path = "../br-ui-picker" }
 clap.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true

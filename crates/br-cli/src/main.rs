@@ -4,7 +4,6 @@ use br_core::{config, engine, model::RoutingContext};
 use br_platform::PlatformIntegration;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use std::process::Command;
 
 #[derive(Parser)]
 #[command(name = "br", version, about = "BrowserRouter — link/protocol router")]
@@ -148,17 +147,18 @@ fn cmd_open(
 
     let normalized = br_core::filters::apply_filters(url, &cfg.filters);
 
+    let platform = br_platform::current();
     match &decision {
         RoutingDecision::OpenWith { target, private } => {
-            launch(&cfg, target, &normalized, *private)?;
+            br_platform::launch(&platform, &cfg, target, &normalized, *private)?;
         }
         RoutingDecision::OpenWithAll { targets, private } => {
             for target in targets {
-                launch(&cfg, target, &normalized, *private)?;
+                br_platform::launch(&platform, &cfg, target, &normalized, *private)?;
             }
         }
         RoutingDecision::AskUser => {
-            // No picker UI implemented yet (v0.1): report the decision instead of opening anything.
+            br_ui_picker::show_picker(&normalized, &cfg)?;
         }
         RoutingDecision::Block => {}
     }
@@ -169,63 +169,6 @@ fn cmd_open(
         println!("url: {normalized}");
         println!("decision: {}", describe_decision(&decision));
     }
-    Ok(())
-}
-
-/// Launches the browser/profile referenced by `target_id` with `url`.
-fn launch(cfg: &br_core::Config, target_id: &str, url: &str, private: bool) -> Result<()> {
-    let target = cfg
-        .browsers
-        .iter()
-        .find(|b| b.id == target_id)
-        .with_context(|| format!("unknown browser target '{target_id}'"))?;
-
-    let resolved_executable;
-    let executable = if target.executable == "auto" {
-        let discovered = br_platform::current()
-            .discover_browsers()
-            .unwrap_or_default();
-        let found = discovered
-            .iter()
-            .find(|b| b.id == target.id || b.kind == target.kind && b.name.contains(&target.name))
-            .with_context(|| {
-                format!(
-                    "browser '{}' has executable = \"auto\" but could not be auto-detected; \
-set an explicit executable path",
-                    target.id
-                )
-            })?;
-        resolved_executable = found.executable.clone();
-        &resolved_executable
-    } else {
-        &target.executable
-    };
-
-    let mut command = Command::new(executable);
-    command.args(&target.args);
-
-    if let Some(profile_dir) = &target.profile_dir {
-        command.arg(format!("--profile-directory={profile_dir}"));
-    }
-    if let Some(profile_name) = &target.profile_name {
-        command.arg("-P").arg(profile_name);
-    }
-    if private {
-        match target.kind.as_str() {
-            "chromium" => {
-                command.arg("--incognito");
-            }
-            "firefox" => {
-                command.arg("--private-window");
-            }
-            _ => {}
-        }
-    }
-    command.arg(url);
-
-    command
-        .spawn()
-        .with_context(|| format!("failed to launch '{executable}'"))?;
     Ok(())
 }
 

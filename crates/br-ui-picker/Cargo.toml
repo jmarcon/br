@@ -1,0 +1,14 @@
+[package]
+name = "br-ui-picker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Always-on-top browser/profile picker UI for BrowserRouter (br)"
+
+[dependencies]
+br-core = { path = "../br-core" }
+br-platform = { path = "../br-platform" }
+anyhow.workspace = true
+eframe = { version = "0.29", default-features = false, features = ["default_fonts", "glow"] }
