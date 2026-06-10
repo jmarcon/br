@@ -1,0 +1,17 @@
+[package]
+name = "br-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Routing engine, rules, filters and config model for BrowserRouter (br)"
+
+[dependencies]
+serde.workspace = true
+toml.workspace = true
+regex.workspace = true
+url.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
