@@ -54,6 +54,8 @@ enum Commands {
     },
     /// Open the settings UI (browsers, filters, rules)
     Settings,
+    /// Check whether the background daemon (br-daemon) is running
+    DaemonStatus,
     /// Register br as the default http/https handler
     Register,
     /// Remove br as the default http/https handler (manual step on most OSes)
@@ -122,6 +124,15 @@ fn main() -> Result<()> {
             BrowsersCommands::List => cmd_browsers_list(cli.json),
         },
         Commands::Settings => br_ui_settings::run(Some(path)),
+        Commands::DaemonStatus => {
+            let running = br_daemon::client::is_running();
+            if cli.json {
+                println!("{}", serde_json::to_string_pretty(&serde_json::json!({"running": running}))?);
+            } else {
+                println!("br-daemon: {}", if running { "running" } else { "not running" });
+            }
+            Ok(())
+        }
         Commands::Register => cmd_register(cli.json),
         Commands::Unregister => cmd_unregister(),
     }
@@ -135,6 +146,25 @@ fn cmd_open(
     source_app: Option<String>,
     json: bool,
 ) -> Result<()> {
+    let source_app_for_dispatch = source_app
+        .clone()
+        .or_else(|| br_platform::current().get_foreground_app_name());
+
+    let dispatch_request = br_daemon::OpenRequest {
+        url: url.to_string(),
+        source_app: source_app_for_dispatch.clone(),
+        app: app.clone(),
+        private,
+    };
+    if matches!(br_daemon::client::try_dispatch(&dispatch_request), Ok(true)) {
+        if json {
+            println!("{}", serde_json::to_string_pretty(&serde_json::json!({"handled_by": "daemon"}))?);
+        } else {
+            println!("handled by br-daemon");
+        }
+        return Ok(());
+    }
+
     let (cfg, _err) = config::load_or_default(path);
 
     let decision = if let Some(app) = app {
@@ -143,8 +173,9 @@ fn cmd_open(
             private,
         }
     } else {
-        let source_app = source_app.or_else(|| br_platform::current().get_foreground_app_name());
-        let ctx = RoutingContext { source_app };
+        let ctx = RoutingContext {
+            source_app: source_app_for_dispatch,
+        };
         engine::route(url, &ctx, &cfg)
     };
 

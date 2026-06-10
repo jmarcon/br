@@ -1,25 +1,19 @@
 [package]
-name = "br-cli"
+name = "br-daemon"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Command-line interface for BrowserRouter (br)"
+description = "Optional background process for BrowserRouter (br): hot-reload config and low-latency IPC"
 
 [[bin]]
-name = "br"
+name = "br-daemon"
 path = "src/main.rs"
 
 [dependencies]
 br-core = { path = "../br-core" }
 br-platform = { path = "../br-platform" }
 br-ui-picker = { path = "../br-ui-picker" }
-br-ui-settings = { path = "../br-ui-settings" }
-br-daemon = { path = "../br-daemon" }
-clap.workspace = true
 anyhow.workspace = true
-serde_json.workspace = true
-serde.workspace = true
-toml.workspace = true
 dirs = "5"

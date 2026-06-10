@@ -195,6 +195,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "br-core",
+ "br-daemon",
  "br-platform",
  "br-ui-picker",
  "br-ui-settings",
@@ -214,6 +215,17 @@ dependencies = [
  "serde",
  "toml",
  "url",
+]
+
+[[package]]
+name = "br-daemon"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "br-core",
+ "br-platform",
+ "br-ui-picker",
+ "dirs",
 ]
 
 [[package]]

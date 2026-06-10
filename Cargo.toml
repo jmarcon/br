@@ -6,6 +6,7 @@ members = [
     "crates/br-ui-picker",
     "crates/br-ui-settings",
     "crates/br-cli",
+    "crates/br-daemon",
 ]
 
 [workspace.package]
