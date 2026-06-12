@@ -52,7 +52,7 @@ jobs:
           Compress-Archive -Path dist/* -DestinationPath ${{ matrix.artifact }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
@@ -88,7 +88,7 @@ jobs:
         run: cargo deb --package br-cli --no-build
 
       - name: Upload .deb
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: browserrouter-amd64.deb
           path: target/debian/*.deb
@@ -132,7 +132,7 @@ jobs:
           Remove-Item $certPath
 
       - name: Upload MSI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: br-windows-x86_64.msi
           path: target/wix/*.msi
@@ -187,7 +187,7 @@ jobs:
           rm -f cert.p12
 
       - name: Upload DMG
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: br-macos-x86_64.dmg
           path: br-macos-*.dmg
