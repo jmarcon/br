@@ -36,17 +36,29 @@
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="LocalAppDataFolder">
                 <Directory Id="APPLICATIONFOLDER" Name="BrowserRouter">
+                    <!-- Per-user components must use an HKCU registry value as the
+                         keypath (ICE38), and the user-profile folder must be removed
+                         on uninstall (ICE64). -->
                     <Component Id="BrComponent" Guid="*">
-                        <File Id="BrExe" Source="target\release\br.exe" KeyPath="yes" />
+                        <File Id="BrExe" Source="target\release\br.exe" KeyPath="no" />
+                        <RegistryValue Root="HKCU" Key="Software\BrowserRouter\Components"
+                            Name="BrExe" Type="integer" Value="1" KeyPath="yes" />
                     </Component>
                     <Component Id="BrHandlerComponent" Guid="*">
-                        <File Id="BrHandlerExe" Source="target\release\br-handler.exe" KeyPath="yes" />
+                        <File Id="BrHandlerExe" Source="target\release\br-handler.exe" KeyPath="no" />
+                        <RegistryValue Root="HKCU" Key="Software\BrowserRouter\Components"
+                            Name="BrHandlerExe" Type="integer" Value="1" KeyPath="yes" />
                     </Component>
                     <Component Id="BrDaemonComponent" Guid="*">
-                        <File Id="BrDaemonExe" Source="target\release\br-daemon.exe" KeyPath="yes" />
+                        <File Id="BrDaemonExe" Source="target\release\br-daemon.exe" KeyPath="no" />
+                        <RegistryValue Root="HKCU" Key="Software\BrowserRouter\Components"
+                            Name="BrDaemonExe" Type="integer" Value="1" KeyPath="yes" />
                     </Component>
                     <Component Id="BrSettingsComponent" Guid="*">
-                        <File Id="BrSettingsExe" Source="target\release\br-settings.exe" KeyPath="yes" />
+                        <File Id="BrSettingsExe" Source="target\release\br-settings.exe" KeyPath="no" />
+                        <RegistryValue Root="HKCU" Key="Software\BrowserRouter\Components"
+                            Name="BrSettingsExe" Type="integer" Value="1" KeyPath="yes" />
+                        <RemoveFolder Id="RemoveApplicationFolder" On="uninstall" />
                     </Component>
                 </Directory>
             </Directory>
