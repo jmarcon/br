@@ -37,7 +37,10 @@ pub fn is_autostart_enabled() -> anyhow::Result<bool> {
     let Some(config_dir) = dirs::config_dir() else {
         return Ok(false);
     };
-    Ok(config_dir.join("autostart").join(AUTOSTART_FILE_NAME).exists())
+    Ok(config_dir
+        .join("autostart")
+        .join(AUTOSTART_FILE_NAME)
+        .exists())
 }
 
 /// Checks `xdg-settings get default-web-browser` against `br`'s `.desktop` file.

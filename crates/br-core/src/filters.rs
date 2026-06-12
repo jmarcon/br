@@ -140,7 +140,7 @@ mod tests {
     fn upgrade_respects_exceptions() {
         let f = filter(&[], true, &["*.local", "localhost"]);
         assert_eq!(
-            apply_filters("http://localhost/", &[f.clone()]),
+            apply_filters("http://localhost/", std::slice::from_ref(&f)),
             "http://localhost/"
         );
         assert_eq!(

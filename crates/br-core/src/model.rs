@@ -13,17 +13,12 @@ pub struct Config {
     pub rules: Vec<Rule>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum DefaultAction {
+    #[default]
     Ask,
     OpenWith(String),
-}
-
-impl Default for DefaultAction {
-    fn default() -> Self {
-        DefaultAction::Ask
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +31,24 @@ pub struct General {
     pub picker_position: String,
     #[serde(default = "default_theme")]
     pub theme: String,
+    #[serde(default = "default_picker_background")]
+    pub picker_background: String,
+    #[serde(default = "default_picker_background_color")]
+    pub picker_background_color: String,
+    #[serde(default)]
+    pub picker_background_image: Option<String>,
+    #[serde(default = "default_picker_window_opacity")]
+    pub picker_window_opacity: f32,
+    #[serde(default = "default_picker_acrylic")]
+    pub picker_acrylic: bool,
+    #[serde(default = "default_picker_icon_size")]
+    pub picker_icon_size: f32,
+    #[serde(default = "default_picker_padding")]
+    pub picker_padding: f32,
+    #[serde(default = "default_picker_width")]
+    pub picker_width: f32,
+    #[serde(default = "default_picker_height")]
+    pub picker_height: f32,
     #[serde(default = "default_language")]
     pub language: String,
     #[serde(default)]
@@ -51,6 +64,15 @@ impl Default for General {
             picker_timeout_ms: 0,
             picker_position: default_picker_position(),
             theme: default_theme(),
+            picker_background: default_picker_background(),
+            picker_background_color: default_picker_background_color(),
+            picker_background_image: None,
+            picker_window_opacity: default_picker_window_opacity(),
+            picker_acrylic: default_picker_acrylic(),
+            picker_icon_size: default_picker_icon_size(),
+            picker_padding: default_picker_padding(),
+            picker_width: default_picker_width(),
+            picker_height: default_picker_height(),
             language: default_language(),
             start_on_login: false,
             log_level: default_log_level(),
@@ -63,6 +85,30 @@ fn default_picker_position() -> String {
 }
 fn default_theme() -> String {
     "system".to_string()
+}
+fn default_picker_background() -> String {
+    "bubbles".to_string()
+}
+fn default_picker_background_color() -> String {
+    "#1453aa".to_string()
+}
+fn default_picker_window_opacity() -> f32 {
+    1.0
+}
+fn default_picker_acrylic() -> bool {
+    false
+}
+fn default_picker_icon_size() -> f32 {
+    72.0
+}
+fn default_picker_padding() -> f32 {
+    20.0
+}
+fn default_picker_width() -> f32 {
+    720.0
+}
+fn default_picker_height() -> f32 {
+    460.0
 }
 fn default_language() -> String {
     "en".to_string()
@@ -175,7 +221,24 @@ pub struct MatchCondition {
     #[serde(default)]
     pub host: Vec<String>,
     #[serde(default)]
+    pub path: Vec<String>,
+    #[serde(default)]
+    pub query_param: Vec<QueryParamMatch>,
+    #[serde(default)]
     pub source_app: Vec<String>,
+    #[serde(default)]
+    pub modifier_keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum QueryParamMatch {
+    Name(String),
+    Condition {
+        name: String,
+        #[serde(default)]
+        value: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -195,14 +258,8 @@ pub struct Action {
 /// The result of evaluating filters + rules for a given URL.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RoutingDecision {
-    OpenWith {
-        target: String,
-        private: bool,
-    },
-    OpenWithAll {
-        targets: Vec<String>,
-        private: bool,
-    },
+    OpenWith { target: String, private: bool },
+    OpenWithAll { targets: Vec<String>, private: bool },
     AskUser,
     Block,
 }
@@ -211,6 +268,7 @@ pub enum RoutingDecision {
 #[derive(Debug, Clone, Default)]
 pub struct RoutingContext {
     pub source_app: Option<String>,
+    pub modifier_keys: Vec<String>,
 }
 
 /// Explains which rule (if any) produced a [`RoutingDecision`], for `br rules test`.

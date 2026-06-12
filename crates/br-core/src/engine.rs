@@ -1,9 +1,11 @@
 use crate::filters::{apply_filters, glob_match};
 use crate::model::{
-    Action, Config, DefaultAction, MatchCondition, Rule, RoutingContext, RoutingDecision,
-    RoutingExplanation,
+    Action, Config, DefaultAction, MatchCondition, QueryParamMatch, RoutingContext,
+    RoutingDecision, RoutingExplanation, Rule,
 };
 use regex::Regex;
+use std::cmp::Reverse;
+use url::Url;
 
 /// Applies filters then evaluates rules in priority order, returning the routing decision.
 pub fn route(url: &str, ctx: &RoutingContext, config: &Config) -> RoutingDecision {
@@ -15,7 +17,7 @@ pub fn explain(url: &str, ctx: &RoutingContext, config: &Config) -> RoutingExpla
     let normalized = apply_filters(url, &config.filters);
 
     let mut rules: Vec<&Rule> = config.rules.iter().filter(|r| r.enabled).collect();
-    rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+    rules.sort_by_key(|rule| Reverse(rule.priority));
 
     for rule in rules {
         if matches(&rule.match_, &normalized, ctx) {
@@ -41,7 +43,7 @@ fn matches(cond: &MatchCondition, url: &str, ctx: &RoutingContext) -> bool {
     }
 
     if !cond.host.is_empty() {
-        let host = url::Url::parse(url)
+        let host = Url::parse(url)
             .ok()
             .and_then(|u| u.host_str().map(|h| h.to_string()))
             .unwrap_or_default();
@@ -50,19 +52,38 @@ fn matches(cond: &MatchCondition, url: &str, ctx: &RoutingContext) -> bool {
         }
     }
 
+    if !cond.path.is_empty() {
+        let path = Url::parse(url)
+            .ok()
+            .map(|u| u.path().to_string())
+            .unwrap_or_default();
+        if !any_pattern_matches(&cond.path, &path) {
+            return false;
+        }
+    }
+
+    if !cond.query_param.is_empty() && !query_params_match(url, &cond.query_param) {
+        return false;
+    }
+
     if !cond.source_app.is_empty() {
         match &ctx.source_app {
             Some(app) => {
-                if !cond
-                    .source_app
-                    .iter()
-                    .any(|p| p.eq_ignore_ascii_case(app))
-                {
+                if !cond.source_app.iter().any(|p| source_app_matches(p, app)) {
                     return false;
                 }
             }
             None => return false,
         }
+    }
+
+    if !cond.modifier_keys.is_empty()
+        && !cond
+            .modifier_keys
+            .iter()
+            .all(|wanted| ctx.modifier_keys.iter().any(|held| key_eq(wanted, held)))
+    {
+        return false;
     }
 
     true
@@ -72,11 +93,59 @@ fn matches(cond: &MatchCondition, url: &str, ctx: &RoutingContext) -> bool {
 fn any_pattern_matches(patterns: &[String], url: &str) -> bool {
     patterns.iter().any(|p| {
         if let Some(re_src) = p.strip_prefix("regex:") {
-            Regex::new(re_src).map(|re| re.is_match(url)).unwrap_or(false)
+            Regex::new(re_src)
+                .map(|re| re.is_match(url))
+                .unwrap_or(false)
         } else {
             glob_match(p, url)
         }
     })
+}
+
+fn source_app_matches(pattern: &str, app: &str) -> bool {
+    if let Some(re_src) = pattern.strip_prefix("regex:") {
+        Regex::new(re_src)
+            .map(|re| re.is_match(app))
+            .unwrap_or(false)
+    } else if pattern.contains('*') {
+        glob_match(pattern, app)
+    } else {
+        pattern.eq_ignore_ascii_case(app)
+    }
+}
+
+fn query_params_match(url: &str, conditions: &[QueryParamMatch]) -> bool {
+    let Ok(parsed) = Url::parse(url) else {
+        return false;
+    };
+    let params: Vec<(String, String)> = parsed
+        .query_pairs()
+        .map(|(k, v)| (k.into_owned(), v.into_owned()))
+        .collect();
+
+    conditions.iter().all(|condition| match condition {
+        QueryParamMatch::Name(name) => params.iter().any(|(k, _)| k == name),
+        QueryParamMatch::Condition { name, value } => params.iter().any(|(k, v)| {
+            if k != name {
+                return false;
+            }
+            value
+                .as_ref()
+                .map(|expected| any_pattern_matches(std::slice::from_ref(expected), v))
+                .unwrap_or(true)
+        }),
+    })
+}
+
+fn key_eq(a: &str, b: &str) -> bool {
+    let normalize = |key: &str| match key.to_ascii_lowercase().as_str() {
+        "cmd" | "command" | "meta" => "cmd".to_string(),
+        "ctrl" | "control" => "ctrl".to_string(),
+        "option" | "alt" => "alt".to_string(),
+        "shift" => "shift".to_string(),
+        other => other.to_string(),
+    };
+    normalize(a) == normalize(b)
 }
 
 fn decision_for_action(action: &Action, default_action: &DefaultAction) -> RoutingDecision {
@@ -163,7 +232,11 @@ mod tests {
             ),
         ]);
 
-        let decision = route("https://www.example.com/page", &RoutingContext::default(), &config);
+        let decision = route(
+            "https://www.example.com/page",
+            &RoutingContext::default(),
+            &config,
+        );
         assert_eq!(
             decision,
             RoutingDecision::OpenWith {
@@ -218,6 +291,7 @@ mod tests {
 
         let ctx_match = RoutingContext {
             source_app: Some("Slack".to_string()),
+            modifier_keys: Vec::new(),
         };
         assert_eq!(
             route("https://example.com", &ctx_match, &config),
@@ -229,6 +303,7 @@ mod tests {
 
         let ctx_other = RoutingContext {
             source_app: Some("Outlook".to_string()),
+            modifier_keys: Vec::new(),
         };
         assert_eq!(
             route("https://example.com", &ctx_other, &config),
@@ -265,7 +340,11 @@ mod tests {
             },
         )]);
         assert_eq!(
-            route("https://x.ads.example.com/x", &RoutingContext::default(), &config),
+            route(
+                "https://x.ads.example.com/x",
+                &RoutingContext::default(),
+                &config
+            ),
             RoutingDecision::Block
         );
     }
@@ -335,6 +414,39 @@ action = { open_with = "chrome" }
         );
         assert_eq!(explanation.normalized_url, "https://example.com/page");
         assert_eq!(explanation.matched_rule, Some("clean-only".to_string()));
+    }
+
+    #[test]
+    fn path_query_and_modifier_matches() {
+        let config_str = r#"
+config_version = 1
+
+[[rules]]
+id = "debug-with-shift"
+enabled = true
+priority = 10
+match = { host = ["example.com"], path = ["/debug/*"], query_param = [{ name = "mode", value = "preview" }], modifier_keys = ["shift"] }
+action = { open_with = "chrome" }
+
+[[browsers]]
+id = "chrome"
+name = "Chrome"
+kind = "chromium"
+executable = "chrome"
+"#;
+        let config: Config = toml::from_str(config_str).unwrap();
+        let ctx = RoutingContext {
+            source_app: None,
+            modifier_keys: vec!["Shift".to_string()],
+        };
+        let decision = route("https://example.com/debug/page?mode=preview", &ctx, &config);
+        assert_eq!(
+            decision,
+            RoutingDecision::OpenWith {
+                target: "chrome".to_string(),
+                private: false,
+            }
+        );
     }
 
     #[test]

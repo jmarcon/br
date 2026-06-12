@@ -66,5 +66,5 @@ pub enum RegisterOutcome {
 
 /// Returns the platform integration for the current OS.
 pub fn current() -> CurrentPlatform {
-    CurrentPlatform::default()
+    CurrentPlatform
 }

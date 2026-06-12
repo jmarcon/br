@@ -17,3 +17,8 @@ br-platform = { path = "../br-platform" }
 br-ui-picker = { path = "../br-ui-picker" }
 anyhow.workspace = true
 dirs = "5"
+
+[target.'cfg(windows)'.dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }
+tray-icon = { version = "0.24.1", default-features = false }
+windows-sys = { version = "0.59", features = ["Win32_UI_WindowsAndMessaging"] }

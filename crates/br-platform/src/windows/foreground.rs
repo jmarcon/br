@@ -20,8 +20,12 @@ pub fn get_foreground_app_name() -> Option<String> {
             return None;
         }
 
-        let handle =
-            OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, false, pid).ok()?;
+        let handle = OpenProcess(
+            PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ,
+            false,
+            pid,
+        )
+        .ok()?;
 
         let mut buf = [0u16; MAX_PATH as usize];
         let len = GetModuleBaseNameW(handle, None, &mut buf);

@@ -8,7 +8,13 @@ use crate::PlatformIntegration;
 ///
 /// If the target's `executable` is `"auto"`, it is resolved against the
 /// browsers discovered by [`PlatformIntegration::discover_browsers`].
-pub fn launch(platform: &impl PlatformIntegration, cfg: &Config, target_id: &str, url: &str, private: bool) -> Result<()> {
+pub fn launch(
+    platform: &impl PlatformIntegration,
+    cfg: &Config,
+    target_id: &str,
+    url: &str,
+    private: bool,
+) -> Result<()> {
     let target = cfg
         .browsers
         .iter()
@@ -59,7 +65,10 @@ set an explicit executable path",
     Ok(())
 }
 
-fn resolve_auto<'a>(target: &BrowserTarget, discovered: &'a [BrowserTarget]) -> Option<&'a BrowserTarget> {
+fn resolve_auto<'a>(
+    target: &BrowserTarget,
+    discovered: &'a [BrowserTarget],
+) -> Option<&'a BrowserTarget> {
     discovered
         .iter()
         .find(|b| b.id == target.id || (b.kind == target.kind && b.name.contains(&target.name)))

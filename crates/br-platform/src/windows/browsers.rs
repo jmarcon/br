@@ -68,7 +68,10 @@ fn discover_start_menu_clients() -> Vec<InstalledClient> {
             };
 
             if let Some(exe) = extract_executable(&command) {
-                if clients.iter().any(|c: &InstalledClient| c.executable == exe) {
+                if clients
+                    .iter()
+                    .any(|c: &InstalledClient| c.executable == exe)
+                {
                     continue;
                 }
                 clients.push(InstalledClient {
@@ -307,7 +310,10 @@ Path=yyyyyyyy.work
 StartWithLastProfile=1
 ";
         let names = parse_profiles_ini(ini);
-        assert_eq!(names, vec!["default-release".to_string(), "Work".to_string()]);
+        assert_eq!(
+            names,
+            vec!["default-release".to_string(), "Work".to_string()]
+        );
     }
 
     #[test]
@@ -325,5 +331,4 @@ StartWithLastProfile=1
             Some(r"C:\Browser\app.exe".to_string())
         );
     }
-
 }

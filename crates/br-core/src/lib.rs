@@ -13,6 +13,6 @@ pub mod model;
 pub use config::{load_or_default, parse, validate};
 pub use engine::{explain, route};
 pub use model::{
-    Action, BrowserTarget, Config, DefaultAction, Filter, General, MatchCondition, Rule,
-    RoutingContext, RoutingDecision, RoutingExplanation,
+    Action, BrowserTarget, Config, DefaultAction, Filter, General, MatchCondition, QueryParamMatch,
+    RoutingContext, RoutingDecision, RoutingExplanation, Rule,
 };

@@ -3,7 +3,8 @@ use crate::RegisterOutcome;
 const LAUNCH_AGENT_LABEL: &str = "com.browserrouter.daemon";
 
 fn launch_agent_path() -> anyhow::Result<std::path::PathBuf> {
-    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("could not determine home directory"))?;
+    let home =
+        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("could not determine home directory"))?;
     Ok(home
         .join("Library/LaunchAgents")
         .join(format!("{LAUNCH_AGENT_LABEL}.plist")))

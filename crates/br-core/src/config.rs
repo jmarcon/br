@@ -47,7 +47,12 @@ pub fn validate(config: &Config) -> Result<()> {
             anyhow::bail!("duplicate rule id: {}", rule.id);
         }
 
-        let mut targets: Vec<&str> = rule.action.open_with_all.iter().map(String::as_str).collect();
+        let mut targets: Vec<&str> = rule
+            .action
+            .open_with_all
+            .iter()
+            .map(String::as_str)
+            .collect();
         if let Some(t) = &rule.action.open_with {
             targets.push(t);
         }
@@ -71,7 +76,7 @@ mod tests {
 
     #[test]
     fn parses_full_example_config() {
-        let toml_str = r#"
+        let toml_str = r##"
 config_version = 1
 
 [general]
@@ -79,6 +84,14 @@ default_action = "ask"
 picker_timeout_ms = 0
 picker_position = "cursor"
 theme = "system"
+picker_background = "bubbles"
+picker_background_color = "#1453aa"
+picker_window_opacity = 1.0
+picker_acrylic = false
+picker_icon_size = 72
+picker_padding = 20
+picker_width = 720
+picker_height = 460
 language = "pt-BR"
 start_on_login = true
 log_level = "warn"
@@ -101,7 +114,7 @@ enabled = true
 priority = 0
 match = { url_pattern = ["*"] }
 action = { ask = true }
-"#;
+"##;
         let config = parse(toml_str).unwrap();
         assert_eq!(config.config_version, 1);
         assert_eq!(config.browsers.len(), 1);

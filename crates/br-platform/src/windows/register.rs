@@ -1,5 +1,6 @@
 use super::PROG_ID;
 use crate::RegisterOutcome;
+use image::ImageEncoder;
 use winreg::enums::*;
 use winreg::RegKey;
 
@@ -7,6 +8,28 @@ const APP_REG_NAME: &str = "BrowserRouter";
 const CAPABILITIES_PATH: &str = r"Software\BrowserRouter\Capabilities";
 const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 const AUTOSTART_VALUE_NAME: &str = "BrowserRouterDaemon";
+const LOGO_BYTES: &[u8] = include_bytes!("../../../../docs/logo_icon_transparent.png");
+
+fn ensure_app_icon() -> anyhow::Result<String> {
+    let dir = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("br");
+    std::fs::create_dir_all(&dir)?;
+    let icon_path = dir.join("browserrouter.ico");
+
+    let image = image::load_from_memory(LOGO_BYTES)?
+        .resize(256, 256, image::imageops::FilterType::Lanczos3)
+        .to_rgba8();
+    let file = std::fs::File::create(&icon_path)?;
+    image::codecs::ico::IcoEncoder::new(file).write_image(
+        image.as_raw(),
+        image.width(),
+        image.height(),
+        image::ExtendedColorType::Rgba8,
+    )?;
+
+    Ok(icon_path.to_string_lossy().to_string())
+}
 
 /// Enables/disables `br-daemon` autostart via `HKCU\...\CurrentVersion\Run`.
 pub fn set_autostart(enabled: bool) -> anyhow::Result<()> {
@@ -16,7 +39,10 @@ pub fn set_autostart(enabled: bool) -> anyhow::Result<()> {
     if enabled {
         let exe = std::env::current_exe()?;
         let daemon_exe = exe.with_file_name("br-daemon.exe");
-        run_key.set_value(AUTOSTART_VALUE_NAME, &daemon_exe.to_string_lossy().to_string())?;
+        run_key.set_value(
+            AUTOSTART_VALUE_NAME,
+            &daemon_exe.to_string_lossy().to_string(),
+        )?;
     } else {
         let _ = run_key.delete_value(AUTOSTART_VALUE_NAME);
     }
@@ -60,14 +86,25 @@ pub fn is_default_handler() -> anyhow::Result<bool> {
 /// can complete the manual confirmation step Windows requires.
 pub fn register_as_default_handler() -> anyhow::Result<RegisterOutcome> {
     let exe = std::env::current_exe()?;
-    let exe_str = exe.to_string_lossy();
-    let command = format!("\"{exe_str}\" open \"%1\"");
+    let handler_exe = exe.with_file_name("br-handler.exe");
+    let protocol_exe = if handler_exe.exists() {
+        handler_exe
+    } else {
+        exe
+    };
+    let exe_str = protocol_exe.to_string_lossy();
+    let command = format!("\"{exe_str}\" \"%1\"");
+    let icon_path = ensure_app_icon().ok();
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
     // 1. ProgId definition: HKCU\Software\Classes\BrowserRouter.HTTP
     let (prog_key, _) = hkcu.create_subkey(format!(r"Software\Classes\{PROG_ID}"))?;
     prog_key.set_value("", &"BrowserRouter")?;
+    if let Some(icon_path) = &icon_path {
+        let (icon_key, _) = prog_key.create_subkey("DefaultIcon")?;
+        icon_key.set_value("", icon_path)?;
+    }
     let (shell_key, _) = prog_key.create_subkey(r"shell\open\command")?;
     shell_key.set_value("", &command)?;
 
@@ -78,6 +115,9 @@ pub fn register_as_default_handler() -> anyhow::Result<RegisterOutcome> {
         "ApplicationDescription",
         &"Routes links to the right browser/profile based on rules",
     )?;
+    if let Some(icon_path) = &icon_path {
+        cap_key.set_value("ApplicationIcon", icon_path)?;
+    }
     let (url_assoc_key, _) = cap_key.create_subkey("URLAssociations")?;
     url_assoc_key.set_value("http", &PROG_ID)?;
     url_assoc_key.set_value("https", &PROG_ID)?;

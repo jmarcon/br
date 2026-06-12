@@ -18,16 +18,22 @@ pub struct OpenRequest {
     pub source_app: Option<String>,
     pub app: Option<String>,
     pub private: bool,
+    pub modifier_keys: Vec<String>,
 }
 
 impl OpenRequest {
     pub fn encode(&self) -> String {
         format!(
-            "OPEN\t{}\t{}\t{}\t{}\n",
+            "OPEN\t{}\t{}\t{}\t{}\t{}\n",
             self.url,
             self.source_app.as_deref().unwrap_or("-"),
             self.app.as_deref().unwrap_or("-"),
             if self.private { 1 } else { 0 },
+            if self.modifier_keys.is_empty() {
+                "-".to_string()
+            } else {
+                self.modifier_keys.join(",")
+            },
         )
     }
 
@@ -46,11 +52,22 @@ impl OpenRequest {
             s => Some(s.to_string()),
         };
         let private = parts.next()? == "1";
+        let modifier_keys = parts
+            .next()
+            .map(|s| {
+                if s == "-" {
+                    Vec::new()
+                } else {
+                    s.split(',').map(str::to_string).collect()
+                }
+            })
+            .unwrap_or_default();
         Some(OpenRequest {
             url,
             source_app,
             app,
             private,
+            modifier_keys,
         })
     }
 }
@@ -66,12 +83,14 @@ mod tests {
             source_app: Some("Slack".to_string()),
             app: Some("chrome-default".to_string()),
             private: true,
+            modifier_keys: vec!["shift".to_string()],
         };
         let decoded = OpenRequest::decode(&req.encode()).unwrap();
         assert_eq!(decoded.url, req.url);
         assert_eq!(decoded.source_app, req.source_app);
         assert_eq!(decoded.app, req.app);
         assert_eq!(decoded.private, req.private);
+        assert_eq!(decoded.modifier_keys, req.modifier_keys);
     }
 
     #[test]
@@ -81,6 +100,7 @@ mod tests {
             source_app: None,
             app: None,
             private: false,
+            modifier_keys: Vec::new(),
         };
         let decoded = OpenRequest::decode(&req.encode()).unwrap();
         assert_eq!(decoded.source_app, None);
