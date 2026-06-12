@@ -1,0 +1,40 @@
+# EditorConfig — https://editorconfig.org
+# Top-most EditorConfig file for the BrowserRouter (br) workspace.
+root = true
+
+# Defaults for every file.
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Rust sources (kept consistent with rustfmt defaults).
+[*.rs]
+indent_size = 4
+
+# Cargo manifests and other TOML.
+[*.toml]
+indent_size = 4
+
+# GitHub Actions workflows and other YAML use 2-space indentation.
+[*.{yml,yaml}]
+indent_size = 2
+
+# WiX installer source is XML.
+[*.wxs]
+indent_size = 4
+
+# Shell scripts.
+[*.sh]
+indent_size = 4
+
+# Markdown: preserve trailing whitespace, which encodes hard line breaks.
+[*.md]
+trim_trailing_whitespace = false
+
+# Makefiles require real tabs.
+[Makefile]
+indent_style = tab
