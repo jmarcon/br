@@ -3,7 +3,7 @@
   WiX Toolset source file for the BrowserRouter (br) Windows installer.
   Built via `cargo wix` (https://github.com/volks73/cargo-wix), which expects
   this file at crates/br-cli/wix/main.wxs and the release binaries already
-  built (`cargo build --release` for br, br-daemon, br-settings).
+  built (via `cargo build` in release mode for br, br-daemon, br-settings).
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
