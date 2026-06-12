@@ -58,7 +58,7 @@ jobs:
           path: ${{ matrix.artifact }}
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ matrix.artifact }}
 
@@ -94,7 +94,7 @@ jobs:
           path: target/debian/*.deb
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: target/debian/*.deb
 
@@ -138,7 +138,7 @@ jobs:
           path: target/wix/*.msi
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: target/wix/*.msi
 
@@ -193,6 +193,6 @@ jobs:
           path: br-macos-*.dmg
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: br-macos-*.dmg
