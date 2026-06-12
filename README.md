@@ -1,4 +1,4 @@
-# br — BrowserRouter
+# BR — BrowserRouter
 
 `br` is a cross-platform link/protocol router for Windows, macOS, and Linux.
 Set it as your default browser and it will route each `http`/`https` link to
@@ -10,8 +10,9 @@ UI when no rule matches.
 
 ### Windows
 Download `br-windows-x86_64.msi` from the [latest release](../../releases/latest)
-and run it. This installs `br`, `br-daemon`, and `br-settings` to your user
-profile and adds a Start Menu shortcut for **BrowserRouter Settings**.
+and run it. This installs `br`, `br-handler`, `br-daemon`, and `br-settings`
+to your user profile and adds a Start Menu shortcut for **BrowserRouter Settings**.
+Windows uses `br-handler.exe` for clicked links so no terminal window is shown.
 
 ### macOS
 Download `br-macos-x86_64.dmg` from the [latest release](../../releases/latest),
@@ -29,7 +30,7 @@ sudo dpkg -i browserrouter-amd64.deb
 ```sh
 cargo build --workspace --release
 ```
-Binaries are produced at `target/release/{br,br-daemon,br-settings}`.
+Binaries are produced at `target/release/{br,br-handler,br-daemon,br-settings}`.
 
 ## Getting started
 
@@ -55,8 +56,10 @@ Configuration lives at `<config-dir>/br/config.toml`:
 It contains:
 
 - `[general]` — theme, language (`en`/`pt-BR`), picker position/timeout,
-  start-on-login.
-- `[[browsers]]` — discovered/configured browsers and profiles.
+  picker background, window opacity, icon size, padding, saved window size,
+  acrylic blur, start-on-login.
+- `[[browsers]]` — discovered/configured browsers and profiles; set `icon`
+  to a PNG/JPG/ICO path, or leave it empty/`auto` to use the app icon.
 - `[[filters]]` — URL filters (strip tracking params, upgrade HTTP to
   HTTPS), with per-domain exceptions.
 - `[[rules]]` — ordered rules matching on URL pattern and/or source
@@ -76,6 +79,7 @@ br rules list                 # list configured rules
 br rules test <url>          # show which rule would handle a URL
 br browsers list             # list detected browsers/profiles
 br settings                   # open the settings UI
+br install windows            # setup Windows handlers, autostart, and tray daemon
 br daemon-status              # check whether br-daemon is running
 br register                   # register br as the default http/https handler
 br unregister                 # remove br as the default handler
@@ -83,6 +87,24 @@ br unregister                 # remove br as the default handler
 
 Pass `--json` to most commands for machine-readable output, and `--config
 <path>` to use a config file other than the default location.
+
+On Windows, run `br register` after rebuilding so the OS protocol association
+points at `br-handler.exe`; keep using `br.exe` for terminal commands.
+
+## Windows daemon
+
+`br-daemon.exe` keeps config warm, listens on `127.0.0.1:47823`, and lets
+`br open`/`br-handler` route links without cold-starting all discovery work.
+
+```powershell
+br install windows   # recommended first setup
+br-daemon.exe        # start background router; tray icon appears
+br daemon-status     # verify it is listening
+br settings          # enable "Start on login" for automatic startup
+```
+
+Right-click the tray icon to open Settings, register BrowserRouter as the
+default browser candidate, or quit the daemon.
 
 ## Updating
 

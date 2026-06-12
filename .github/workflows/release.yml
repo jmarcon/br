@@ -48,7 +48,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item target/release/br.exe, target/release/br-daemon.exe, target/release/br-settings.exe dist/
+          Copy-Item target/release/br.exe, target/release/br-handler.exe, target/release/br-daemon.exe, target/release/br-settings.exe dist/
           Compress-Archive -Path dist/* -DestinationPath ${{ matrix.artifact }}
 
       - name: Upload artifact

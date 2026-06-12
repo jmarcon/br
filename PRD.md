@@ -352,6 +352,15 @@ default_action = "ask"          # "ask" | "open_with:<id>"
 picker_timeout_ms = 0             # 0 = sem timeout
 picker_position = "cursor"        # "cursor" | "center" | "top-right" | ...
 theme = "system"                  # "system" | "light" | "dark"
+picker_background = "bubbles"     # "solid" | "bubbles" | "image"
+picker_background_color = "#9946d8"
+picker_background_image = "C:\\Users\\me\\Pictures\\picker.png"
+picker_window_opacity = 1.0       # 0.35 | ... | 1.0
+picker_acrylic = false
+picker_icon_size = 72
+picker_padding = 20
+picker_width = 720
+picker_height = 460
 language = "pt-BR"
 start_on_login = true
 log_level = "warn"
