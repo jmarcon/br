@@ -3,7 +3,8 @@ use br_core::model::RoutingDecision;
 use br_core::{config, engine, model::RoutingContext};
 use br_platform::PlatformIntegration;
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::cmp::Reverse;
+use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
 #[command(name = "br", version, about = "BrowserRouter — link/protocol router")]
@@ -34,6 +35,9 @@ enum Commands {
         /// Name of the app the link originated from (best-effort context for rules)
         #[arg(long = "source-app")]
         source_app: Option<String>,
+        /// Modifier key(s) held for rule matching (repeatable: shift, ctrl, alt, cmd)
+        #[arg(long = "modifier-key")]
+        modifier_keys: Vec<String>,
     },
     /// Diagnose configuration and environment
     Doctor,
@@ -54,6 +58,11 @@ enum Commands {
     },
     /// Open the settings UI (browsers, filters, rules)
     Settings,
+    /// Install/setup platform integration
+    Install {
+        #[command(subcommand)]
+        command: InstallCommands,
+    },
     /// Check whether the background daemon (br-daemon) is running
     DaemonStatus,
     /// Register br as the default http/https handler
@@ -66,6 +75,12 @@ enum Commands {
 enum BrowsersCommands {
     /// List browsers/profiles detected on this system
     List,
+}
+
+#[derive(Subcommand)]
+enum InstallCommands {
+    /// Register Windows handlers, enable autostart, and start the tray daemon
+    Windows,
 }
 
 #[derive(Subcommand)]
@@ -95,6 +110,8 @@ enum RulesCommands {
         url: String,
         #[arg(long = "source-app")]
         source_app: Option<String>,
+        #[arg(long = "modifier-key")]
+        modifier_keys: Vec<String>,
     },
     /// Add a new rule
     Add {
@@ -109,12 +126,27 @@ enum RulesCommands {
         /// URL glob/regex pattern(s) to match (repeatable)
         #[arg(long = "url-pattern")]
         url_pattern: Vec<String>,
+        /// Host glob/regex pattern(s) to match (repeatable)
+        #[arg(long)]
+        host: Vec<String>,
+        /// Path glob/regex pattern(s) to match (repeatable)
+        #[arg(long)]
+        path: Vec<String>,
+        /// Query param match, as `name` or `name=value-pattern` (repeatable)
+        #[arg(long = "query-param")]
+        query_param: Vec<String>,
         /// Source application name(s) to match (repeatable)
         #[arg(long = "source-app")]
         source_app: Vec<String>,
+        /// Modifier key(s) to match (repeatable: shift, ctrl, alt, cmd)
+        #[arg(long = "modifier-key")]
+        modifier_keys: Vec<String>,
         /// Browser/profile id to open matching URLs with
         #[arg(long = "open-with")]
         open_with: Option<String>,
+        /// Browser/profile ids to open simultaneously (repeatable)
+        #[arg(long = "open-with-all")]
+        open_with_all: Vec<String>,
         /// Open in private/incognito mode
         #[arg(long)]
         private: bool,
@@ -152,7 +184,16 @@ fn main() -> Result<()> {
             app,
             private,
             source_app,
-        } => cmd_open(&path, &url, app, private, source_app, cli.json),
+            modifier_keys,
+        } => cmd_open(
+            &path,
+            &url,
+            app,
+            private,
+            source_app,
+            modifier_keys,
+            cli.json,
+        ),
         Commands::Doctor => cmd_doctor(&path, cli.json),
         Commands::Config { command } => match command {
             ConfigCommands::Show => cmd_config_show(&path, cli.json),
@@ -162,22 +203,43 @@ fn main() -> Result<()> {
         },
         Commands::Rules { command } => match command {
             RulesCommands::List => cmd_rules_list(&path, cli.json),
-            RulesCommands::Test { url, source_app } => {
-                cmd_rules_test(&path, &url, source_app, cli.json)
-            }
+            RulesCommands::Test {
+                url,
+                source_app,
+                modifier_keys,
+            } => cmd_rules_test(&path, &url, source_app, modifier_keys, cli.json),
             RulesCommands::Add {
                 id,
                 name,
                 priority,
                 url_pattern,
+                host,
+                path: path_patterns,
+                query_param,
                 source_app,
+                modifier_keys,
                 open_with,
+                open_with_all,
                 private,
                 block,
                 disabled,
             } => cmd_rules_add(
-                &path, id, name, priority, url_pattern, source_app, open_with, private, block,
-                disabled, cli.json,
+                &path,
+                id,
+                name,
+                priority,
+                url_pattern,
+                host,
+                path_patterns,
+                query_param,
+                source_app,
+                modifier_keys,
+                open_with,
+                open_with_all,
+                private,
+                block,
+                disabled,
+                cli.json,
             ),
             RulesCommands::Rm { id } => cmd_rules_rm(&path, &id, cli.json),
         },
@@ -185,12 +247,21 @@ fn main() -> Result<()> {
             BrowsersCommands::List => cmd_browsers_list(cli.json),
         },
         Commands::Settings => br_ui_settings::run(Some(path)),
+        Commands::Install { command } => match command {
+            InstallCommands::Windows => cmd_install_windows(&path, cli.json),
+        },
         Commands::DaemonStatus => {
             let running = br_daemon::client::is_running();
             if cli.json {
-                println!("{}", serde_json::to_string_pretty(&serde_json::json!({"running": running}))?);
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({"running": running}))?
+                );
             } else {
-                println!("br-daemon: {}", if running { "running" } else { "not running" });
+                println!(
+                    "br-daemon: {}",
+                    if running { "running" } else { "not running" }
+                );
             }
             Ok(())
         }
@@ -200,11 +271,12 @@ fn main() -> Result<()> {
 }
 
 fn cmd_open(
-    path: &PathBuf,
+    path: &Path,
     url: &str,
     app: Option<String>,
     private: bool,
     source_app: Option<String>,
+    modifier_keys: Vec<String>,
     json: bool,
 ) -> Result<()> {
     let source_app_for_dispatch = source_app
@@ -216,10 +288,14 @@ fn cmd_open(
         source_app: source_app_for_dispatch.clone(),
         app: app.clone(),
         private,
+        modifier_keys: modifier_keys.clone(),
     };
     if matches!(br_daemon::client::try_dispatch(&dispatch_request), Ok(true)) {
         if json {
-            println!("{}", serde_json::to_string_pretty(&serde_json::json!({"handled_by": "daemon"}))?);
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({"handled_by": "daemon"}))?
+            );
         } else {
             println!("handled by br-daemon");
         }
@@ -236,6 +312,7 @@ fn cmd_open(
     } else {
         let ctx = RoutingContext {
             source_app: source_app_for_dispatch,
+            modifier_keys,
         };
         engine::route(url, &ctx, &cfg)
     };
@@ -259,7 +336,10 @@ fn cmd_open(
     }
 
     if json {
-        println!("{}", serde_json::to_string_pretty(&decision_json(&decision, &normalized))?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&decision_json(&decision, &normalized))?
+        );
     } else {
         println!("url: {normalized}");
         println!("decision: {}", describe_decision(&decision));
@@ -267,7 +347,7 @@ fn cmd_open(
     Ok(())
 }
 
-fn cmd_doctor(path: &PathBuf, json: bool) -> Result<()> {
+fn cmd_doctor(path: &Path, json: bool) -> Result<()> {
     let (cfg, err) = config::load_or_default(path);
     let platform = br_platform::current();
     let is_default = platform.is_default_handler().unwrap_or(false);
@@ -295,7 +375,14 @@ fn cmd_doctor(path: &PathBuf, json: bool) -> Result<()> {
         if let Some(e) = info["config_error"].as_str() {
             println!("config error: {e}");
         }
-        println!("default handler: {}", if is_default { "yes" } else { "no (run `br register`)" });
+        println!(
+            "default handler: {}",
+            if is_default {
+                "yes"
+            } else {
+                "no (run `br register`)"
+            }
+        );
         println!("browsers detected: {}", discovered.len());
         println!("browsers configured: {}", cfg.browsers.len());
         println!("rules configured: {}", cfg.rules.len());
@@ -327,26 +414,134 @@ fn cmd_browsers_list(json: bool) -> Result<()> {
 
 fn cmd_register(json: bool) -> Result<()> {
     let outcome = br_platform::current().register_as_default_handler()?;
-    match outcome {
-        br_platform::RegisterOutcome::Registered => {
-            if json {
-                println!("{}", serde_json::json!({"status": "registered"}));
-            } else {
-                println!("br is now the default http/https handler.");
-            }
-        }
-        br_platform::RegisterOutcome::NeedsManualConfirmation { instructions } => {
-            if json {
-                println!(
-                    "{}",
-                    serde_json::json!({"status": "needs_manual_confirmation", "instructions": instructions})
-                );
-            } else {
-                println!("{instructions}");
-            }
-        }
+    if json {
+        println!("{}", register_outcome_json(outcome));
+    } else {
+        print_register_outcome(outcome);
     }
     Ok(())
+}
+
+fn cmd_install_windows(path: &Path, json: bool) -> Result<()> {
+    if std::env::consts::OS != "windows" {
+        anyhow::bail!("`br install windows` can only run on Windows");
+    }
+
+    let config_existed = path.exists();
+    let (mut cfg, err) = config::load_or_default(path);
+    if config_existed {
+        if let Some(err) = err {
+            return Err(err).context("existing config is invalid; fix it before install");
+        }
+    }
+
+    let platform = br_platform::current();
+    let discovered = platform.discover_browsers().unwrap_or_default();
+    let mut existing_ids: std::collections::HashSet<String> =
+        cfg.browsers.iter().map(|b| b.id.clone()).collect();
+    let discovered_count = discovered.len();
+    let mut added_browsers = 0usize;
+    for browser in discovered {
+        if existing_ids.insert(browser.id.clone()) {
+            cfg.browsers.push(browser);
+            added_browsers += 1;
+        }
+    }
+    cfg.general.start_on_login = true;
+    write_config(path, &cfg)?;
+
+    let autostart_enabled = platform.set_autostart(true).is_ok();
+    let register_outcome = platform.register_as_default_handler()?;
+    let daemon_started = ensure_daemon_running()?;
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "platform": "windows",
+                "config_path": path.display().to_string(),
+                "config_created": !config_existed,
+                "browsers_detected": discovered_count,
+                "browsers_added": added_browsers,
+                "autostart_enabled": autostart_enabled,
+                "daemon_running": br_daemon::client::is_running(),
+                "daemon_started": daemon_started,
+                "default_handler": register_outcome_json(register_outcome),
+            }))?
+        );
+    } else {
+        println!("config: {}", path.display());
+        println!("browsers: {added_browsers} added ({discovered_count} detected)");
+        println!(
+            "autostart: {}",
+            if autostart_enabled {
+                "enabled"
+            } else {
+                "failed"
+            }
+        );
+        println!(
+            "daemon: {}",
+            if daemon_started {
+                "started"
+            } else {
+                "already running"
+            }
+        );
+        print_register_outcome(register_outcome);
+    }
+
+    Ok(())
+}
+
+fn register_outcome_json(outcome: br_platform::RegisterOutcome) -> serde_json::Value {
+    match outcome {
+        br_platform::RegisterOutcome::Registered => serde_json::json!({"status": "registered"}),
+        br_platform::RegisterOutcome::NeedsManualConfirmation { instructions } => {
+            serde_json::json!({"status": "needs_manual_confirmation", "instructions": instructions})
+        }
+    }
+}
+
+fn print_register_outcome(outcome: br_platform::RegisterOutcome) {
+    match outcome {
+        br_platform::RegisterOutcome::Registered => {
+            println!("default handler: registered");
+        }
+        br_platform::RegisterOutcome::NeedsManualConfirmation { instructions } => {
+            println!("default handler: needs Windows confirmation");
+            println!("{instructions}");
+        }
+    }
+}
+
+fn ensure_daemon_running() -> Result<bool> {
+    if br_daemon::client::is_running() {
+        return Ok(false);
+    }
+    start_daemon()?;
+    std::thread::sleep(std::time::Duration::from_millis(250));
+    Ok(true)
+}
+
+#[cfg(windows)]
+fn start_daemon() -> Result<()> {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let daemon = std::env::current_exe()
+        .context("locating br.exe")?
+        .with_file_name("br-daemon.exe");
+    std::process::Command::new(&daemon)
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .with_context(|| format!("failed to start {}", daemon.display()))?;
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn start_daemon() -> Result<()> {
+    anyhow::bail!("daemon startup is only implemented for Windows install")
 }
 
 fn cmd_unregister() -> Result<()> {
@@ -357,7 +552,15 @@ and choose a different browser for http/https."
     Ok(())
 }
 
-fn cmd_config_show(path: &PathBuf, json: bool) -> Result<()> {
+fn write_config(path: &Path, cfg: &br_core::Config) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).context("creating config directory")?;
+    }
+    std::fs::write(path, toml::to_string_pretty(cfg)?).context("writing config file")?;
+    Ok(())
+}
+
+fn cmd_config_show(path: &Path, json: bool) -> Result<()> {
     let (cfg, err) = config::load_or_default(path);
     if let Some(err) = err {
         eprintln!("warning: {err}");
@@ -370,7 +573,7 @@ fn cmd_config_show(path: &PathBuf, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_config_validate(path: &PathBuf, json: bool) -> Result<()> {
+fn cmd_config_validate(path: &Path, json: bool) -> Result<()> {
     let contents = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read {}", path.display()))?;
     match config::parse(&contents) {
@@ -381,13 +584,20 @@ fn cmd_config_validate(path: &PathBuf, json: bool) -> Result<()> {
                     serde_json::json!({"valid": true, "rules": cfg.rules.len(), "browsers": cfg.browsers.len()})
                 );
             } else {
-                println!("config is valid ({} rules, {} browsers)", cfg.rules.len(), cfg.browsers.len());
+                println!(
+                    "config is valid ({} rules, {} browsers)",
+                    cfg.rules.len(),
+                    cfg.browsers.len()
+                );
             }
             Ok(())
         }
         Err(err) => {
             if json {
-                println!("{}", serde_json::json!({"valid": false, "error": err.to_string()}));
+                println!(
+                    "{}",
+                    serde_json::json!({"valid": false, "error": err.to_string()})
+                );
                 Ok(())
             } else {
                 Err(err)
@@ -396,7 +606,7 @@ fn cmd_config_validate(path: &PathBuf, json: bool) -> Result<()> {
     }
 }
 
-fn cmd_config_export(path: &PathBuf, output: Option<PathBuf>) -> Result<()> {
+fn cmd_config_export(path: &Path, output: Option<PathBuf>) -> Result<()> {
     let (cfg, err) = config::load_or_default(path);
     if let Some(err) = err {
         eprintln!("warning: {err}");
@@ -413,7 +623,7 @@ fn cmd_config_export(path: &PathBuf, output: Option<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-fn cmd_config_import(path: &PathBuf, input: &PathBuf, json: bool) -> Result<()> {
+fn cmd_config_import(path: &Path, input: &Path, json: bool) -> Result<()> {
     let contents = std::fs::read_to_string(input)
         .with_context(|| format!("failed to read {}", input.display()))?;
     let cfg = config::parse(&contents).context("imported file is not a valid configuration")?;
@@ -440,10 +650,10 @@ fn cmd_config_import(path: &PathBuf, input: &PathBuf, json: bool) -> Result<()> 
     Ok(())
 }
 
-fn cmd_rules_list(path: &PathBuf, json: bool) -> Result<()> {
+fn cmd_rules_list(path: &Path, json: bool) -> Result<()> {
     let (cfg, _err) = config::load_or_default(path);
     let mut rules = cfg.rules.clone();
-    rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+    rules.sort_by_key(|rule| Reverse(rule.priority));
 
     if json {
         println!("{}", serde_json::to_string_pretty(&rules)?);
@@ -461,9 +671,18 @@ fn cmd_rules_list(path: &PathBuf, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_rules_test(path: &PathBuf, url: &str, source_app: Option<String>, json: bool) -> Result<()> {
+fn cmd_rules_test(
+    path: &Path,
+    url: &str,
+    source_app: Option<String>,
+    modifier_keys: Vec<String>,
+    json: bool,
+) -> Result<()> {
     let (cfg, _err) = config::load_or_default(path);
-    let ctx = RoutingContext { source_app };
+    let ctx = RoutingContext {
+        source_app,
+        modifier_keys,
+    };
     let explanation = engine::explain(url, &ctx, &cfg);
 
     if json {
@@ -488,13 +707,18 @@ fn cmd_rules_test(path: &PathBuf, url: &str, source_app: Option<String>, json: b
 
 #[allow(clippy::too_many_arguments)]
 fn cmd_rules_add(
-    path: &PathBuf,
+    path: &Path,
     id: String,
     name: Option<String>,
     priority: Option<i64>,
     url_pattern: Vec<String>,
+    host: Vec<String>,
+    path_patterns: Vec<String>,
+    query_param: Vec<String>,
     source_app: Vec<String>,
+    modifier_keys: Vec<String>,
     open_with: Option<String>,
+    open_with_all: Vec<String>,
     private: bool,
     block: bool,
     disabled: bool,
@@ -505,10 +729,15 @@ fn cmd_rules_add(
     if cfg.rules.iter().any(|r| r.id == id) {
         anyhow::bail!("a rule with id '{id}' already exists");
     }
+    if open_with.is_some() && !open_with_all.is_empty() {
+        anyhow::bail!("use either --open-with or --open-with-all, not both");
+    }
+    if block && (open_with.is_some() || !open_with_all.is_empty()) {
+        anyhow::bail!("--block cannot be combined with open actions");
+    }
 
-    let priority = priority.unwrap_or_else(|| {
-        cfg.rules.iter().map(|r| r.priority).max().unwrap_or(0) + 10
-    });
+    let priority =
+        priority.unwrap_or_else(|| cfg.rules.iter().map(|r| r.priority).max().unwrap_or(0) + 10);
 
     let rule = br_core::Rule {
         id: id.clone(),
@@ -517,15 +746,18 @@ fn cmd_rules_add(
         priority,
         match_: br_core::MatchCondition {
             url_pattern,
+            host,
+            path: path_patterns,
+            query_param: parse_query_params(query_param),
             source_app,
-            ..Default::default()
+            modifier_keys,
         },
         action: br_core::Action {
-            ask: open_with.is_none() && !block,
+            ask: open_with.is_none() && open_with_all.is_empty() && !block,
             open_with,
+            open_with_all,
             private,
             block,
-            ..Default::default()
         },
     };
 
@@ -543,7 +775,23 @@ fn cmd_rules_add(
     Ok(())
 }
 
-fn cmd_rules_rm(path: &PathBuf, id: &str, json: bool) -> Result<()> {
+fn parse_query_params(values: Vec<String>) -> Vec<br_core::QueryParamMatch> {
+    values
+        .into_iter()
+        .map(|value| {
+            if let Some((name, expected)) = value.split_once('=') {
+                br_core::QueryParamMatch::Condition {
+                    name: name.to_string(),
+                    value: Some(expected.to_string()),
+                }
+            } else {
+                br_core::QueryParamMatch::Name(value)
+            }
+        })
+        .collect()
+}
+
+fn cmd_rules_rm(path: &Path, id: &str, json: bool) -> Result<()> {
     let (mut cfg, _err) = config::load_or_default(path);
     let before = cfg.rules.len();
     cfg.rules.retain(|r| r.id != id);
@@ -564,7 +812,10 @@ fn cmd_rules_rm(path: &PathBuf, id: &str, json: bool) -> Result<()> {
 fn describe_decision(decision: &RoutingDecision) -> String {
     match decision {
         RoutingDecision::OpenWith { target, private } => {
-            format!("open_with {target}{}", if *private { " (private)" } else { "" })
+            format!(
+                "open_with {target}{}",
+                if *private { " (private)" } else { "" }
+            )
         }
         RoutingDecision::OpenWithAll { targets, private } => format!(
             "open_with_all [{}]{}",

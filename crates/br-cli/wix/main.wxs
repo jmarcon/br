@@ -38,6 +38,7 @@
                 <Directory Id="APPLICATIONFOLDER" Name="BrowserRouter">
                     <Component Id="BinariesComponent" Guid="*">
                         <File Id="BrExe" Source="target\release\br.exe" KeyPath="yes" />
+                        <File Id="BrHandlerExe" Source="target\release\br-handler.exe" />
                         <File Id="BrDaemonExe" Source="target\release\br-daemon.exe" />
                         <File Id="BrSettingsExe" Source="target\release\br-settings.exe" />
                     </Component>

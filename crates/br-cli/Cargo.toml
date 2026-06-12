@@ -11,6 +11,10 @@ description = "Command-line interface for BrowserRouter (br)"
 name = "br"
 path = "src/main.rs"
 
+[[bin]]
+name = "br-handler"
+path = "src/bin/br-handler.rs"
+
 [dependencies]
 br-core = { path = "../br-core" }
 br-platform = { path = "../br-platform" }
