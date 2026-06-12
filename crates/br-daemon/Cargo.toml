@@ -16,7 +16,7 @@ br-core = { path = "../br-core" }
 br-platform = { path = "../br-platform" }
 br-ui-picker = { path = "../br-ui-picker" }
 anyhow.workspace = true
-dirs = "5"
+dirs = "6"
 
 [target.'cfg(windows)'.dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
