@@ -23,7 +23,7 @@ jobs:
           - os: windows-latest
             artifact: br-windows-x86_64.zip
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Linux UI dependencies
         if: runner.os == 'Linux'
@@ -69,7 +69,7 @@ jobs:
     name: Linux .deb installer
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Linux UI dependencies
         run: |
@@ -105,7 +105,7 @@ jobs:
     name: Windows MSI installer
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -149,7 +149,7 @@ jobs:
     name: macOS DMG installer
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
