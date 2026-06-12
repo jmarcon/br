@@ -391,7 +391,7 @@ dependencies = [
 
 [[package]]
 name = "br-cli"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "br-core",
@@ -408,7 +408,7 @@ dependencies = [
 
 [[package]]
 name = "br-core"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "regex",
@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "br-daemon"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "br-core",
@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "br-platform"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "br-core",
@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "br-ui-picker"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "br-core",
@@ -462,7 +462,7 @@ dependencies = [
 
 [[package]]
 name = "br-ui-settings"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "br-core",

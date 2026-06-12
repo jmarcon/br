@@ -36,11 +36,17 @@
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="LocalAppDataFolder">
                 <Directory Id="APPLICATIONFOLDER" Name="BrowserRouter">
-                    <Component Id="BinariesComponent" Guid="*">
+                    <Component Id="BrComponent" Guid="*">
                         <File Id="BrExe" Source="target\release\br.exe" KeyPath="yes" />
-                        <File Id="BrHandlerExe" Source="target\release\br-handler.exe" />
-                        <File Id="BrDaemonExe" Source="target\release\br-daemon.exe" />
-                        <File Id="BrSettingsExe" Source="target\release\br-settings.exe" />
+                    </Component>
+                    <Component Id="BrHandlerComponent" Guid="*">
+                        <File Id="BrHandlerExe" Source="target\release\br-handler.exe" KeyPath="yes" />
+                    </Component>
+                    <Component Id="BrDaemonComponent" Guid="*">
+                        <File Id="BrDaemonExe" Source="target\release\br-daemon.exe" KeyPath="yes" />
+                    </Component>
+                    <Component Id="BrSettingsComponent" Guid="*">
+                        <File Id="BrSettingsExe" Source="target\release\br-settings.exe" KeyPath="yes" />
                     </Component>
                 </Directory>
             </Directory>
@@ -67,7 +73,10 @@
         </Directory>
 
         <Feature Id="MainFeature" Title="BrowserRouter" Level="1">
-            <ComponentRef Id="BinariesComponent" />
+            <ComponentRef Id="BrComponent" />
+            <ComponentRef Id="BrHandlerComponent" />
+            <ComponentRef Id="BrDaemonComponent" />
+            <ComponentRef Id="BrSettingsComponent" />
             <ComponentRef Id="ApplicationShortcutComponent" />
         </Feature>
 
