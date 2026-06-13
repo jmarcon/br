@@ -37,10 +37,11 @@ pub fn discover() -> Vec<BrowserTarget> {
                 continue;
             }
 
+            let kind = classify_desktop_entry(&parsed);
             targets.push(BrowserTarget {
                 id,
                 name: parsed.name,
-                kind: classify_desktop_entry(&parsed),
+                kind,
                 executable,
                 args: vec![],
                 profile_dir: None,
