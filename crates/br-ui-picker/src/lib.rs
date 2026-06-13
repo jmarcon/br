@@ -319,7 +319,7 @@ impl eframe::App for PickerApp {
                     self.cfg.general.picker_acrylic,
                     picker_opacity(&self.cfg),
                 );
-                ui.allocate_new_ui(
+                ui.scope_builder(
                     egui::UiBuilder::new().max_rect(panel_rect.shrink(20.0)),
                     |ui| {
                         self.header(ui, &ctx, &lang);
@@ -338,7 +338,7 @@ impl eframe::App for PickerApp {
 
                         let content_rect = browser_grid_rect(ui.max_rect(), panel_rect, &self.cfg);
                         let mut chosen = None;
-                        ui.allocate_new_ui(egui::UiBuilder::new().max_rect(content_rect), |ui| {
+                        ui.scope_builder(egui::UiBuilder::new().max_rect(content_rect), |ui| {
                             chosen = self.browser_grid(ui, content_rect);
                         });
 
