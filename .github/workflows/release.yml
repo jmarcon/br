@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   package:
     name: Package (${{ matrix.os }})
@@ -20,7 +23,7 @@ jobs:
           - os: windows-latest
             artifact: br-windows-x86_64.zip
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Linux UI dependencies
         if: runner.os == 'Linux'
@@ -52,13 +55,13 @@ jobs:
           Compress-Archive -Path dist/* -DestinationPath ${{ matrix.artifact }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ matrix.artifact }}
 
@@ -66,7 +69,7 @@ jobs:
     name: Linux .deb installer
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Linux UI dependencies
         run: |
@@ -88,13 +91,13 @@ jobs:
         run: cargo deb --package br-cli --no-build
 
       - name: Upload .deb
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: browserrouter-amd64.deb
           path: target/debian/*.deb
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: target/debian/*.deb
 
@@ -102,7 +105,7 @@ jobs:
     name: Windows MSI installer
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -132,13 +135,13 @@ jobs:
           Remove-Item $certPath
 
       - name: Upload MSI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: br-windows-x86_64.msi
           path: target/wix/*.msi
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: target/wix/*.msi
 
@@ -146,7 +149,7 @@ jobs:
     name: macOS DMG installer
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -187,12 +190,12 @@ jobs:
           rm -f cert.p12
 
       - name: Upload DMG
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: br-macos-x86_64.dmg
           path: br-macos-*.dmg
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: br-macos-*.dmg
