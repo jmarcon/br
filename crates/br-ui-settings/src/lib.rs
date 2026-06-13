@@ -727,9 +727,8 @@ impl SettingsApp {
     }
 
     fn show_onboarding(&mut self, ui: &mut egui::Ui) {
-        let ctx = ui.ctx().clone();
         let lang = self.config.general.language.clone();
-        apply_material_style(&ctx, &self.config.general.theme);
+        apply_material_style(ui.ctx(), &self.config.general.theme);
         egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.add_space(28.0);
             ui.vertical_centered(|ui| {
@@ -779,8 +778,7 @@ impl SettingsApp {
 
 impl eframe::App for SettingsApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        let ctx = ui.ctx().clone();
-        apply_material_style(&ctx, &self.config.general.theme);
+        apply_material_style(ui.ctx(), &self.config.general.theme);
         if self.onboarding {
             self.show_onboarding(ui);
             return;
@@ -837,7 +835,7 @@ impl eframe::App for SettingsApp {
                 }
             });
 
-        if let Some(status) = self.status.clone() {
+        if let Some(status) = self.status.as_deref() {
             egui::Panel::bottom("status")
                 .frame(
                     egui::Frame::new()
