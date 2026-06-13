@@ -3,7 +3,7 @@
   WiX Toolset source file for the BrowserRouter (br) Windows installer.
   Built via `cargo wix` (https://github.com/volks73/cargo-wix), which expects
   this file at crates/br-cli/wix/main.wxs and the release binaries already
-  built (`cargo build --release` for br, br-daemon, br-settings).
+  built (via `cargo build` in release mode for br, br-daemon, br-settings).
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
@@ -36,11 +36,31 @@
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="LocalAppDataFolder">
                 <Directory Id="APPLICATIONFOLDER" Name="BrowserRouter">
-                    <Component Id="BinariesComponent" Guid="*">
-                        <File Id="BrExe" Source="target\release\br.exe" KeyPath="yes" />
-                        <File Id="BrHandlerExe" Source="target\release\br-handler.exe" />
-                        <File Id="BrDaemonExe" Source="target\release\br-daemon.exe" />
-                        <File Id="BrSettingsExe" Source="target\release\br-settings.exe" />
+                    <!-- Per-user components must use an HKCU registry value as the
+                         keypath (ICE38), and the user-profile folder must be removed
+                         on uninstall (ICE64). A component containing both a file and a
+                         registry keypath cannot use an auto-generated GUID (CNDL0230),
+                         so each carries an explicit, stable Component GUID. -->
+                    <Component Id="BrComponent" Guid="600EE69F-717F-4AB1-978F-E87F8F535138">
+                        <File Id="BrExe" Source="target\release\br.exe" KeyPath="no" />
+                        <RegistryValue Root="HKCU" Key="Software\BrowserRouter\Components"
+                            Name="BrExe" Type="integer" Value="1" KeyPath="yes" />
+                    </Component>
+                    <Component Id="BrHandlerComponent" Guid="BA4F930D-B314-421A-AB5D-EE43C3A501C0">
+                        <File Id="BrHandlerExe" Source="target\release\br-handler.exe" KeyPath="no" />
+                        <RegistryValue Root="HKCU" Key="Software\BrowserRouter\Components"
+                            Name="BrHandlerExe" Type="integer" Value="1" KeyPath="yes" />
+                    </Component>
+                    <Component Id="BrDaemonComponent" Guid="BE1B0EAB-C0E7-40B9-A584-4A98E4053ED2">
+                        <File Id="BrDaemonExe" Source="target\release\br-daemon.exe" KeyPath="no" />
+                        <RegistryValue Root="HKCU" Key="Software\BrowserRouter\Components"
+                            Name="BrDaemonExe" Type="integer" Value="1" KeyPath="yes" />
+                    </Component>
+                    <Component Id="BrSettingsComponent" Guid="60D7F290-D6B0-4B53-941C-8A878B692767">
+                        <File Id="BrSettingsExe" Source="target\release\br-settings.exe" KeyPath="no" />
+                        <RegistryValue Root="HKCU" Key="Software\BrowserRouter\Components"
+                            Name="BrSettingsExe" Type="integer" Value="1" KeyPath="yes" />
+                        <RemoveFolder Id="RemoveApplicationFolder" On="uninstall" />
                     </Component>
                 </Directory>
             </Directory>
@@ -67,7 +87,10 @@
         </Directory>
 
         <Feature Id="MainFeature" Title="BrowserRouter" Level="1">
-            <ComponentRef Id="BinariesComponent" />
+            <ComponentRef Id="BrComponent" />
+            <ComponentRef Id="BrHandlerComponent" />
+            <ComponentRef Id="BrDaemonComponent" />
+            <ComponentRef Id="BrSettingsComponent" />
             <ComponentRef Id="ApplicationShortcutComponent" />
         </Feature>
 
