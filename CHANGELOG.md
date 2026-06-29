@@ -6,6 +6,8 @@ Format follows Keep a Changelog, and versions follow SemVer.
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-06-29
+
 ### Added
 
 - Initial BrowserRouter workspace, CLI, core routing, filters, picker, settings, daemon, and platform integration.
