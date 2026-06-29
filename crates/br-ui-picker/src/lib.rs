@@ -1045,22 +1045,22 @@ fn load_associated_icon(path: &Path) -> Option<egui::ColorImage> {
             SHGFI_ICON | SHGFI_LARGEICON,
         )
     };
-    if result == 0 || info.hIcon == 0 {
+    if result == 0 || info.hIcon.is_null() {
         return None;
     }
 
     let size = 64i32;
-    let screen_dc = unsafe { GetDC(0) };
-    if screen_dc == 0 {
+    let screen_dc = unsafe { GetDC(null_mut()) };
+    if screen_dc.is_null() {
         unsafe {
             DestroyIcon(info.hIcon);
         }
         return None;
     }
     let mem_dc = unsafe { CreateCompatibleDC(screen_dc) };
-    if mem_dc == 0 {
+    if mem_dc.is_null() {
         unsafe {
-            ReleaseDC(0, screen_dc);
+            ReleaseDC(null_mut(), screen_dc);
             DestroyIcon(info.hIcon);
         }
         return None;
@@ -1088,18 +1088,39 @@ fn load_associated_icon(path: &Path) -> Option<egui::ColorImage> {
             rgbReserved: 0,
         }],
     };
-    let bitmap = unsafe { CreateDIBSection(mem_dc, &bitmap_info, DIB_RGB_COLORS, &mut bits, 0, 0) };
-    if bitmap == 0 || bits.is_null() {
+    let bitmap = unsafe {
+        CreateDIBSection(
+            mem_dc,
+            &bitmap_info,
+            DIB_RGB_COLORS,
+            &mut bits,
+            null_mut(),
+            0,
+        )
+    };
+    if bitmap.is_null() || bits.is_null() {
         unsafe {
             DeleteDC(mem_dc);
-            ReleaseDC(0, screen_dc);
+            ReleaseDC(null_mut(), screen_dc);
             DestroyIcon(info.hIcon);
         }
         return None;
     }
 
     let old = unsafe { SelectObject(mem_dc, bitmap as HGDIOBJ) };
-    let drawn = unsafe { DrawIconEx(mem_dc, 0, 0, info.hIcon, size, size, 0, 0, DI_NORMAL) };
+    let drawn = unsafe {
+        DrawIconEx(
+            mem_dc,
+            0,
+            0,
+            info.hIcon,
+            size,
+            size,
+            0,
+            null_mut(),
+            DI_NORMAL,
+        )
+    };
     let raw = if drawn != 0 {
         let bytes = unsafe {
             std::slice::from_raw_parts(bits.cast::<u8>(), (size * size * 4) as usize).to_vec()
@@ -1121,12 +1142,12 @@ fn load_associated_icon(path: &Path) -> Option<egui::ColorImage> {
     };
 
     unsafe {
-        if old != 0 {
+        if !old.is_null() {
             SelectObject(mem_dc, old);
         }
         DeleteObject(bitmap as HGDIOBJ);
         DeleteDC(mem_dc);
-        ReleaseDC(0, screen_dc);
+        ReleaseDC(null_mut(), screen_dc);
         DestroyIcon(info.hIcon);
     }
 
