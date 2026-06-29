@@ -296,16 +296,17 @@ impl PickerApp {
 }
 
 impl eframe::App for PickerApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.apply_timeout(ctx);
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+        self.apply_timeout(&ctx);
         ctx.set_visuals(egui::Visuals::dark());
         let shift_held = ctx.input(|i| i.modifiers.shift);
-        self.handle_keys(ctx, shift_held);
+        self.handle_keys(&ctx, shift_held);
 
         let lang = self.cfg.general.language.clone();
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().fill(egui::Color32::TRANSPARENT))
-            .show(ctx, |ui| {
+            .frame(egui::Frame::new().fill(egui::Color32::TRANSPARENT))
+            .show_inside(ui, |ui| {
                 let panel_rect = ui.max_rect().shrink2(egui::vec2(12.0, 12.0));
                 let background = self
                     .background_override
@@ -318,10 +319,10 @@ impl eframe::App for PickerApp {
                     self.cfg.general.picker_acrylic,
                     picker_opacity(&self.cfg),
                 );
-                ui.allocate_new_ui(
+                ui.scope_builder(
                     egui::UiBuilder::new().max_rect(panel_rect.shrink(20.0)),
                     |ui| {
-                        self.header(ui, ctx, &lang);
+                        self.header(ui, &ctx, &lang);
                         ui.add_space(self.cfg.general.picker_padding.clamp(0.0, 56.0));
 
                         if self.targets.is_empty() {
@@ -337,7 +338,7 @@ impl eframe::App for PickerApp {
 
                         let content_rect = browser_grid_rect(ui.max_rect(), panel_rect, &self.cfg);
                         let mut chosen = None;
-                        ui.allocate_new_ui(egui::UiBuilder::new().max_rect(content_rect), |ui| {
+                        ui.scope_builder(egui::UiBuilder::new().max_rect(content_rect), |ui| {
                             chosen = self.browser_grid(ui, content_rect);
                         });
 
@@ -349,12 +350,12 @@ impl eframe::App for PickerApp {
                         }
 
                         if let Some(i) = chosen {
-                            self.choose(ctx, i, shift_held);
+                            self.choose(&ctx, i, shift_held);
                         }
                     },
                 );
                 if self.show_options {
-                    self.options_menu(ui, ctx, panel_rect);
+                    self.options_menu(ui, &ctx, panel_rect);
                 }
                 self.footer(ui, panel_rect);
             });
@@ -451,7 +452,7 @@ impl PickerApp {
             .order(egui::Order::Foreground)
             .fixed_pos(pos)
             .show(ui.ctx(), |ui| {
-                egui::Frame::none()
+                egui::Frame::new()
                     .fill(alpha_color(
                         egui::Color32::from_rgba_unmultiplied(7, 24, 54, 238),
                         opacity,
@@ -463,8 +464,8 @@ impl PickerApp {
                             opacity,
                         ),
                     ))
-                    .rounding(egui::Rounding::same(8.0))
-                    .inner_margin(egui::Margin::same(12.0))
+                    .corner_radius(egui::CornerRadius::same(8))
+                    .inner_margin(egui::Margin::same(12))
                     .show(ui, |ui| {
                         ui.set_width(270.0);
                         ui.label(egui::RichText::new("Picker options").strong());
@@ -553,7 +554,7 @@ impl PickerApp {
         let painter = ui.painter_at(pill_rect);
         painter.rect_filled(
             pill_rect,
-            egui::Rounding::same(8.0),
+            egui::CornerRadius::same(8),
             alpha_color(
                 egui::Color32::from_rgba_unmultiplied(20, 83, 170, 160),
                 opacity,
@@ -588,7 +589,7 @@ impl PickerApp {
                 .on_hover_text("Always open this domain here");
             painter.rect_filled(
                 button_rect,
-                egui::Rounding::same(6.0),
+                egui::CornerRadius::same(6),
                 alpha_color(
                     egui::Color32::from_rgba_unmultiplied(255, 255, 255, 24),
                     opacity,
@@ -626,7 +627,7 @@ fn icon_button(ui: &mut egui::Ui, icon: HeaderIcon, tooltip: &str, opacity: f32)
     } else {
         control_fill(opacity)
     };
-    painter.rect_filled(rect, egui::Rounding::same(7.0), fill);
+    painter.rect_filled(rect, egui::CornerRadius::same(7), fill);
     let stroke = egui::Stroke::new(2.0, alpha_color(egui::Color32::WHITE, opacity));
     let c = rect.center();
     match icon {
@@ -689,7 +690,7 @@ fn draw_panel_background(
     if background == "solid" {
         painter.rect_filled(
             rect,
-            egui::Rounding::same(10.0),
+            egui::CornerRadius::same(10),
             alpha_color(
                 parse_hex_color(&cfg.general.picker_background_color)
                     .unwrap_or_else(|| egui::Color32::from_rgb(20, 83, 170)),
@@ -701,12 +702,12 @@ fn draw_panel_background(
 
     painter.rect_filled(
         rect,
-        egui::Rounding::same(10.0),
+        egui::CornerRadius::same(10),
         alpha_color(egui::Color32::from_rgb(7, 24, 54), opacity),
     );
     painter.rect_filled(
         rect,
-        egui::Rounding::same(10.0),
+        egui::CornerRadius::same(10),
         alpha_color(
             egui::Color32::from_rgba_unmultiplied(25, 142, 71, 170),
             opacity,
@@ -737,7 +738,7 @@ fn draw_acrylic_overlay(ui: &egui::Ui, rect: egui::Rect, enabled: bool, opacity:
     let painter = ui.painter();
     painter.rect_filled(
         rect,
-        egui::Rounding::same(10.0),
+        egui::CornerRadius::same(10),
         alpha_color(
             egui::Color32::from_rgba_unmultiplied(255, 255, 255, 28),
             opacity,
@@ -782,7 +783,7 @@ fn profile_tile(
     if selected || response.hovered() {
         painter.rect_filled(
             rect,
-            egui::Rounding::same(10.0),
+            egui::CornerRadius::same(10),
             egui::Color32::from_rgba_unmultiplied(255, 255, 255, 28),
         );
     }

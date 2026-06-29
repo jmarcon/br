@@ -240,13 +240,13 @@ fn apply_material_style(ctx: &egui::Context, theme: &str) {
     visuals.widgets.inactive.bg_fill = material_surface_container();
     visuals.widgets.hovered.bg_fill = material_hover();
     visuals.widgets.active.bg_fill = material_active();
-    visuals.widgets.inactive.rounding = egui::Rounding::same(8.0);
-    visuals.widgets.hovered.rounding = egui::Rounding::same(8.0);
-    visuals.widgets.active.rounding = egui::Rounding::same(8.0);
+    visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(8);
+    visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(8);
+    visuals.widgets.active.corner_radius = egui::CornerRadius::same(8);
     visuals.selection.bg_fill = material_primary();
     visuals.selection.stroke.color = egui::Color32::WHITE;
     ctx.set_visuals(visuals);
-    ctx.style_mut(|style| {
+    ctx.global_style_mut(|style| {
         style.spacing.item_spacing = egui::vec2(8.0, 6.0);
         style.spacing.button_padding = egui::vec2(12.0, 6.0);
     });
@@ -363,31 +363,31 @@ fn material_on_primary() -> egui::Color32 {
 fn filled_button(label: impl Into<String>) -> egui::Button<'static> {
     egui::Button::new(egui::RichText::new(label.into()).color(material_on_primary()))
         .fill(material_primary())
-        .rounding(egui::Rounding::same(20.0))
+        .corner_radius(egui::CornerRadius::same(20))
         .min_size(egui::vec2(76.0, 34.0))
 }
 
 fn tonal_button(label: impl Into<String>) -> egui::Button<'static> {
     egui::Button::new(egui::RichText::new(label.into()).color(material_on_surface()))
         .fill(material_tonal())
-        .rounding(egui::Rounding::same(20.0))
+        .corner_radius(egui::CornerRadius::same(20))
         .min_size(egui::vec2(76.0, 34.0))
 }
 
 fn danger_button(label: impl Into<String>) -> egui::Button<'static> {
     egui::Button::new(egui::RichText::new(label.into()).color(material_error()))
         .fill(egui::Color32::TRANSPARENT)
-        .rounding(egui::Rounding::same(20.0))
+        .corner_radius(egui::CornerRadius::same(20))
         .min_size(egui::vec2(64.0, 34.0))
 }
 
 fn material_section(ui: &mut egui::Ui, title: &str, add: impl FnOnce(&mut egui::Ui)) {
     let width = ui.available_width().max(240.0);
-    egui::Frame::none()
+    egui::Frame::new()
         .fill(material_surface())
         .stroke(egui::Stroke::new(1.0, material_outline()))
-        .rounding(egui::Rounding::same(8.0))
-        .inner_margin(egui::Margin::same(10.0))
+        .corner_radius(egui::CornerRadius::same(8))
+        .inner_margin(egui::Margin::same(10))
         .show(ui, |ui| {
             ui.set_width((width - 20.0).max(220.0));
             ui.label(
@@ -580,7 +580,7 @@ fn nav_button(ui: &mut egui::Ui, selected: bool, label: &str) -> egui::Response 
         [ui.available_width(), 40.0],
         egui::Button::new(egui::RichText::new(label).color(material_on_surface()))
             .fill(fill)
-            .rounding(egui::Rounding::same(24.0)),
+            .corner_radius(egui::CornerRadius::same(24)),
     )
 }
 
@@ -726,10 +726,10 @@ impl SettingsApp {
         }
     }
 
-    fn show_onboarding(&mut self, ctx: &egui::Context) {
+    fn show_onboarding(&mut self, ui: &mut egui::Ui) {
         let lang = self.config.general.language.clone();
-        apply_material_style(ctx, &self.config.general.theme);
-        egui::CentralPanel::default().show(ctx, |ui| {
+        apply_material_style(ui.ctx(), &self.config.general.theme);
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.add_space(28.0);
             ui.vertical_centered(|ui| {
                 ui.set_max_width(560.0);
@@ -777,22 +777,22 @@ impl SettingsApp {
 }
 
 impl eframe::App for SettingsApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        apply_material_style(ctx, &self.config.general.theme);
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        apply_material_style(ui.ctx(), &self.config.general.theme);
         if self.onboarding {
-            self.show_onboarding(ctx);
+            self.show_onboarding(ui);
             return;
         }
 
         let lang = self.config.general.language.clone();
-        egui::TopBottomPanel::top("app-bar")
-            .exact_height(52.0)
+        egui::Panel::top("app-bar")
+            .exact_size(52.0)
             .frame(
-                egui::Frame::none()
+                egui::Frame::new()
                     .fill(material_surface())
-                    .inner_margin(egui::Margin::symmetric(16.0, 6.0)),
+                    .inner_margin(egui::Margin::symmetric(16, 6)),
             )
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.horizontal_centered(|ui| {
                     ui.label(
                         egui::RichText::new(tr(Key::SettingsTitle, &lang))
@@ -808,15 +808,15 @@ impl eframe::App for SettingsApp {
                 });
             });
 
-        egui::SidePanel::left("settings-nav")
-            .exact_width(152.0)
+        egui::Panel::left("settings-nav")
+            .exact_size(152.0)
             .resizable(false)
             .frame(
-                egui::Frame::none()
+                egui::Frame::new()
                     .fill(material_surface_container_low())
-                    .inner_margin(egui::Margin::same(8.0)),
+                    .inner_margin(egui::Margin::same(8)),
             )
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 if nav_button(ui, self.tab == Tab::General, tr(Key::TabGeneral, &lang)).clicked() {
                     self.tab = Tab::General;
                 }
@@ -835,19 +835,19 @@ impl eframe::App for SettingsApp {
                 }
             });
 
-        if let Some(status) = self.status.clone() {
-            egui::TopBottomPanel::bottom("status")
+        if let Some(status) = self.status.as_deref() {
+            egui::Panel::bottom("status")
                 .frame(
-                    egui::Frame::none()
+                    egui::Frame::new()
                         .fill(material_surface_container())
-                        .inner_margin(egui::Margin::symmetric(16.0, 6.0)),
+                        .inner_margin(egui::Margin::symmetric(16, 6)),
                 )
-                .show(ctx, |ui| {
+                .show_inside(ui, |ui| {
                     ui.label(status);
                 });
         }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
